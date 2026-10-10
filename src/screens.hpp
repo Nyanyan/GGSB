@@ -34,7 +34,7 @@ inline void Application::draw_shell() {
         if (global) p.label(ui::tr(U"全体"), 12, 84, y + 8, muted);
         const auto& thread = model.chats.threads.at(target);
         if (thread.unread) p.mono(Format(thread.unread)).draw(11, Arg::topRight = Vec2{closable ? 173.0 : 200.0, y + 8}, mint);
-        const bool closed = closable && p.button({180, y + 5, 25, 24}, U"×");
+        const bool closed = closable && p.close_button({180, y + 5, 24, 24});
         if (closed) { close_chat(target); return; }
         if (!p.blocked && row.mouseOver()) Cursor::RequestStyle(CursorStyle::Hand);
         if (!p.blocked && p.dragging_list.empty() && row.leftClicked()) open_chat(target);
@@ -62,7 +62,7 @@ inline void Application::draw_shell() {
         const String result = winner ? (*winner < 0 ? ui::tr(U"引き分け") : ui::tr(U"勝者 ") + str(m.player[*winner])) : finished ? ui::tr(U"結果なし") : ui::tr(U"対局中");
         p.clipped(result, 12, {24, y + 25, 143, 19}, winner ? mint : muted, finished);
         p.clipped((finished ? ui::tr(U"終局") + U" · " : U"") + (m.games() == 2 ? U"SYNC" : U"8×8") + U" · " + str(id), 9, {24, y + 46, 143, 15}, muted);
-        const bool stopped = model.can_stop_watching(id) && p.button({180, y + 17, 25, 26}, U"×");
+        const bool stopped = model.can_stop_watching(id) && p.close_button({180, y + 18, 24, 24});
         if (stopped) { stop_watching(id); continue; }
         if (!p.blocked && p.dragging_list.empty() && r.leftClicked()) { choose_match(id); page = 0; }
     }
@@ -343,6 +343,8 @@ inline void Application::draw_lobby() {
 
 inline void Application::draw_users() {
     using namespace ui;
+    constexpr int visible = 19;
+    constexpr double row_height = 34;
     p.label(ui::tr(U"ONLINE PLAYERS"), 13, 334, 147, mint);
     p.input("filter", filter, {1175, 145, 272, 43}, ui::tr(U"プレイヤー名を検索"));
     if (p.button({1461, 145, 113, 43}, ui::tr(U"更新"))) refresh_users();
@@ -351,19 +353,19 @@ inline void Application::draw_users() {
     p.label(ui::tr(U"ランダム (8r)"), 12, 665, 237, muted); p.label(ui::tr(U"状態"), 12, 771, 237, muted);
     std::vector<User> users;
     for (const auto& u : model.users) if (filter.value.empty() || str(u.name).lowercased().contains(filter.value.lowercased())) users.push_back(u);
-    p.scroll_list("players", {350, 280, 1195, 650}, {1558, 283, 10, 612}, int(users.size()), 9, list_offset);
-    for (int i = list_offset; i < int(users.size()) && i < list_offset + 9; ++i) {
-        const auto& u = users[i]; double y = 283 + (i - list_offset) * 68;
-        p.clipped(str(u.name), 20, {362, y + 5, 186, 35}, text, true);
-        p.mono(u.rating ? ToString(*u.rating, 1) : U"—").draw(19, Vec2{564, y + 7}, text);
-        p.mono(u.random_rating ? ToString(*u.random_rating, 1) : U"—").draw(19, Vec2{665, y + 7}, text);
-        p.clipped(u.state == "+" ? ui::tr(U"対局募集中") : u.state == "x" ? ui::tr(U"離席") : ui::tr(U"受付停止"), 12, {771, y + 12, 145, 24}, u.state == "+" ? mint : muted);
-        if (p.button({928, y, 74, 39}, ui::tr(U"チャット"))) open_chat(u.name);
-        if (p.button({1012, y, 101, 39}, ui::tr(U"記録・成績"))) select_player(u.name);
-        if (p.button({1123, y, 113, 39}, ui::tr(U"プロフィール"))) show_player_info(u.name);
-        if (p.button({1246, y, 100, 39}, ui::tr(U"対局成績"))) show_player_info(u.name, true);
-        if (may_match() && p.button({1356, y, 189, 39}, ui::tr(U"対局を申し込む"), true, u.name != model.username && u.state != "x")) challenge(str(u.name));
-        Line{362, y + 54, 1547, y + 54}.draw(1, line);
+    p.scroll_list("players", {350, 280, 1195, 650}, {1558, 283, 10, visible * row_height}, int(users.size()), visible, list_offset);
+    for (int i = list_offset; i < int(users.size()) && i < list_offset + visible; ++i) {
+        const auto& u = users[i]; double y = 283 + (i - list_offset) * row_height;
+        p.clipped(str(u.name), 14, {362, y + 7, 186, 25});
+        p.mono(u.rating ? ToString(*u.rating, 1) : U"—").draw(13, Vec2{564, y + 8}, text);
+        p.mono(u.random_rating ? ToString(*u.random_rating, 1) : U"—").draw(13, Vec2{665, y + 8}, text);
+        p.clipped(u.state == "+" ? ui::tr(U"対局募集中") : u.state == "x" ? ui::tr(U"離席") : ui::tr(U"受付停止"), 11, {771, y + 10, 145, 20}, u.state == "+" ? mint : muted);
+        if (p.button({928, y + 2, 74, 28}, ui::tr(U"チャット"), false, true, mint, 12)) open_chat(u.name);
+        if (p.button({1012, y + 2, 101, 28}, ui::tr(U"記録・成績"), false, true, mint, 12)) select_player(u.name);
+        if (p.button({1123, y + 2, 113, 28}, ui::tr(U"プロフィール"), false, true, mint, 12)) show_player_info(u.name);
+        if (p.button({1246, y + 2, 100, 28}, ui::tr(U"対局成績"), false, true, mint, 12)) show_player_info(u.name, true);
+        if (may_match() && p.button({1356, y + 2, 189, 28}, ui::tr(U"対局を申し込む"), true, u.name != model.username && u.state != "x", mint, 12)) challenge(str(u.name));
+        Line{362, y + row_height - 1, 1547, y + row_height - 1}.draw(1, line);
     }
     if (users.empty()) p.font(ui::tr(U"プレイヤーなし")).drawAt(19, {951, 557}, muted);
 }

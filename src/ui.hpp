@@ -92,15 +92,23 @@ public:
         f(value).draw(size, region.pos, color);
     }
     void card(RectF r, double = 0) const { r.draw(background); }
-    bool button(RectF r, String title, bool primary = false, bool enabled = true, ColorF accent = mint) const {
+    bool button(RectF r, String title, bool primary = false, bool enabled = true, ColorF accent = mint, double text_size = 16) const {
         enabled = enabled && !blocked;
         const bool hover = enabled && r.mouseOver();
         ColorF bg = primary && enabled ? accent : background;
         r.draw(bg).drawFrame(hover ? 1.5 : 1, enabled && (hover || primary) ? accent : line);
-        const double size = Min(16.0, 16.0 * (r.w - 16) / Max(1.0, font(title).region(16).w));
+        const double size = Min(text_size, text_size * (r.w - 16) / Max(1.0, font(title).region(text_size).w));
         font(title).drawAt(size, r.center(), !enabled ? muted : primary ? background : text);
         if (hover) Cursor::RequestStyle(CursorStyle::Hand);
         return enabled && r.leftClicked();
+    }
+    bool close_button(RectF r, bool enabled = true) const {
+        const bool clicked = button(r, U"", false, enabled);
+        const Vec2 center = r.center();
+        const ColorF color = enabled && !blocked ? text : muted;
+        Line{center.movedBy(-4, -4), center.movedBy(4, 4)}.draw(1.5, color);
+        Line{center.movedBy(-4, 4), center.movedBy(4, -4)}.draw(1.5, color);
+        return clicked;
     }
     bool toggle(RectF r, String title, bool& value) const {
         clipped(title, 18, {r.x, r.y + 5, r.w - 38, r.h - 5});
