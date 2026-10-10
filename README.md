@@ -50,7 +50,7 @@ If a file cannot be decrypted, the app leaves it untouched and shows an error. Y
 - Use the controls at the top to request an abort, resign or propose a score. Regular matches also support undo requests. The undo button is disabled for synchro matches because GGS does not support them.
 - Synchro matches show two boards side by side, with disc counts, remaining time and whose turn it is on each board. While the two games have different move counts, the clock on the board that is ahead stops.
 - After a match finishes, its overall winner appears at the top, in the lobby and in the multiple-match list. Matches without an official result, such as aborted matches, show **No result**.
-- Switch between watched matches from the left sidebar. Use the **×** beside a watched match to stop watching it there. If the connection drops, the app reconnects automatically and resumes the matches you are still watching.
+- Switch between watched matches from the left sidebar. Finished matches show **Finished** and the overall winner's name there; draws and matches without a result are labeled separately. Use the **×** beside a watched match to stop watching it there. If the connection drops, the app reconnects automatically and resumes the matches you are still watching.
 - **Multiple matches** displays up to four matches per page. Each synchro match shows two boards and a combined evaluation graph. Add watched matches from the lobby; use the pages to view five or more matches. Click anywhere in a match's area to open its main view. **Stop watching** in each area removes that match without opening it. You cannot stop watching your own ongoing match.
 - **Players** shows ratings for standard starts (`8`) and random starts (`8r`) side by side. Both ratings also appear near the IDs in the match view; values that have not arrived show “—”. **Profile** sends `finger` to GGS itself, while **Statistics** sends `finger` to `/os`; the results appear in the console. You can also check whether a player is accepting challenges and send a challenge.
 
@@ -109,6 +109,10 @@ Use **×** in the sidebar or **Close** in the conversation to close a private or
 The public `.chat` channel is always in the left sidebar, and the app joins it automatically on login. Click it to open the public chat history and input field. Private conversations and public chat have separate histories and recipients. Long messages wrap to the available width, and the output supports text selection, copying and scrolling.
 
 `.tourney` is also always in the left sidebar and is joined automatically on login and reconnection.
+
+Enable **Play a sound for incoming chat** in Settings to hear chat notifications. This setting starts off. **Volume** adjusts both placement sounds and chat notifications from 0 to 100%; 0 mutes both. **Test notification sound** previews the selected volume.
+
+Use **Sound** in each conversation to enable or mute that conversation's notifications. Match chat has its own **Sound** checkbox above its messages. Individual settings are saved in `App/settings.ini` separately for each server host and port, and survive closing a chat or restarting the app. The global chat sound setting must also be on. Service conversations such as `/os` start muted; routine board and list updates, sent messages and echoes of your own messages do not trigger notifications.
 
 Service names beginning with a slash, such as `/os`, can also be chat recipients. For example, sending `help` from the `/os` tab shows the response in that tab. Boards and match lists continue to update while a service tab is open.
 
@@ -174,7 +178,7 @@ Network tests use a mock server at 127.0.0.1 to verify registered and unregister
 
 GUI tests copy only the executable and runtime files into a dedicated folder under `build/`. They do not load your usual `App/settings.ini`, saved accounts or game records, and they check afterward that your connection settings have not changed.
 
-The GUI smoke test also verifies closing and reopening chats, retaining drafts, stopping and restarting watching, and ignoring delayed updates to stopped watches. Audio checks measure output samples after a placement in both the match and multiple-match views.
+The GUI smoke test also verifies closing and reopening chats, retaining drafts, stopping and restarting watching, and ignoring delayed updates to stopped watches. Audio checks measure placement and notification output, reduced volume, zero volume, per-conversation muting and the global chat setting. Restart checks verify that volume and conversation preferences are restored.
 
 With Python 3, run `python tests/gui_session_smoke.py` to check registered and unregistered login in the actual app. This test connects only to a local mock server and verifies the lobby after login, both ratings, the destinations of profile and game-statistics queries, private and public chat sending and receiving, visibility of playing controls, and the absence of playing-setting commands for unregistered accounts.
 
@@ -205,6 +209,7 @@ Enter your account to verify authentication and play on the live GGS server. Cur
 | `src/notebook_screens.hpp` | Multiple-match and statistics-by-opponent screens |
 | `src/console.hpp` / `src/console_screens.hpp` | Console text selection, scrolling and monospaced display |
 | `src/chat_screens.hpp` | Private and public chat display and input |
+| `src/sound_settings.hpp` | Audio volume and per-conversation notification preferences |
 | `src/scroll.hpp` | List scroll positions, wheel input and dragging |
 | `src/language.hpp` / `assets/languages/` | Japanese and English language packs |
 | `src/tracking.hpp` / `src/tracking_application.hpp` | Tracking sessions, history, statistics, automatic watching and saving |
@@ -264,7 +269,7 @@ Siv3D 0.6.16で作った、GGS（Generic Game Server）用のオセロGUIです�
 - 画面上部から中断の申込・投了・スコアの提案を操作できます。通常戦では待ったの申込も使えます。シンクロ戦の待ったはGGS側が対応していないため、ボタンを無効にしています。
 - シンクロ戦では2面を並べ、各盤の石数・持ち時間・手番を表示します。2局の手数がずれている間は、先行した盤の時計を止めます。
 - 終局後は画面上部に対戦全体の勝者を表示し、ロビーと複数対局の一覧でも勝者を確認できます。中断など公式結果がない対局は「結果なし」と表示します。
-- 観戦中の対局は左側から切り替えられます。各対局の横の「×」で、その場で観戦を終了できます。接続が切れると自動で再接続し、観戦を続けている対局を再開します。
+- 観戦中の対局は左側から切り替えられます。終局した対局は、その一覧にも「終局」と対戦全体の勝者名を表示します。引き分けと結果のない対局は、それぞれ区別して表示します。各対局の横の「×」で、その場で観戦を終了できます。接続が切れると自動で再接続し、観戦を続けている対局を再開します。
 - 「複数対局」では、1ページに4対戦まで同時表示できます。シンクロ戦はそれぞれ2面と合算グラフを表示します。観戦する対局はロビーから追加でき、5対戦以上はページを切り替えて確認できます。対局エリア内をクリックすると、その対局画面を開きます。各エリアの「観戦を終了」では、対局画面を開かずに観戦を終了できます。自分の対局が進行中の場合、観戦は終了できません。
 - 「プレイヤー」画面では通常開始の `8` とランダム開始の `8r` のレーティングを並べて表示します。対局画面のID付近にも2種類を表示し、未受信の値は「—」になります。「プロフィール」はGGS本体へ `finger` を送り、「対局成績」は `/os` へ `finger` を送って、コンソールに結果を表示します。対局受付状態の確認や対局申込もできます。
 
@@ -323,6 +328,10 @@ GGFには開始局面・着手・選手名・受信した評価値・結果を�
 全体チャットの `.chat` は左側に常設し、ログイン時に自動で参加します。クリックすると全体チャットの履歴と入力欄が開きます。個人チャットと全体チャットは、履歴も送信先も分けています。長いメッセージは画面幅で折り返し、出力の文字選択・コピー・スクロールも使えます。
 
 `.tourney` も左側に常設し、ログイン時と再接続時に自動で参加します。
+
+設定画面の「チャット受信時に音を鳴らす」をオンにすると、チャットの通知音が鳴ります。初期設定ではオフです。「音量」は着手音とチャット通知音の両方に反映し、0～100％で調整できます。0％では両方とも鳴りません。「通知音を試す」で、設定した音量を確認できます。
+
+各会話画面の「通知音」で、その会話の通知音をオン・オフにできます。対局内のチャットも、メッセージの上にある「通知音」で個別に切り替えられます。個別設定は接続先のホスト・ポートごとに `App/settings.ini` に保存し、チャットを閉じたりアプリを再起動したりしても保持します。通知音を鳴らすには、設定画面のチャット通知音もオンにしてください。`/os` などのサービスの会話は、初期設定では個別にオフにしています。通常の盤面・一覧の更新、送信したメッセージ、自分の発言の反映では通知音を鳴らしません。
 
 `/os` など、スラッシュで始まるサービス名もチャットの宛先にできます。たとえば `/os` のタブで `help` を送ると、その返答を同じタブに表示します。盤面や対局一覧の更新は、サービスのタブを開いている間も反映されます。
 
@@ -388,7 +397,7 @@ MinGWの `g++` がある環境で実行できます。
 
 GUIテストは実行ファイルとランタイムだけを `build/` 内の専用フォルダーへコピーして実行します。普段使う `App/settings.ini`、保存済みアカウント、対局記録をテストに読み込まず、実行後にも接続設定が変わっていないことを確認します。
 
-GUIの動作確認では、チャットを閉じて開き直す操作、下書きの保持、観戦の終了と再開も検証します。観戦終了後に遅れて届いた盤面通知で観戦が再開しないことも確認します。音の検証では、対局画面と複数対局画面のそれぞれで着手後の出力波形を測定します。
+GUIの動作確認では、チャットを閉じて開き直す操作、下書きの保持、観戦の終了と再開も検証します。観戦終了後に遅れて届いた盤面通知で観戦が再開しないことも確認します。音の検証では、着手音と通知音の出力、音量を下げた場合と0％にした場合、会話ごとのミュートと全体のチャット通知設定を確認します。また、再起動後に音量と会話ごとの設定を復元できることも検証します。
 
 Python 3が使える環境では、`python tests/gui_session_smoke.py` で登録済み・未登録のログインを実際のアプリで確認できます。このテストではローカルの模擬サーバーだけに接続し、ログイン後のロビー表示、2種類のレーティング、プロフィールと対局成績の問い合わせ先、個人チャット・全体チャットの送受信、対戦操作の表示可否、未登録時に対戦設定コマンドを送らないことを検証します。
 
@@ -419,6 +428,7 @@ cd App
 | `src/notebook_screens.hpp` | 複数対局と相手別成績の画面 |
 | `src/console.hpp` / `src/console_screens.hpp` | コンソールの文字選択・スクロール・等幅表示 |
 | `src/chat_screens.hpp` | 個人チャット・全体チャットの表示と入力 |
+| `src/sound_settings.hpp` | 音量と会話ごとの通知音設定 |
 | `src/scroll.hpp` | 一覧のスクロール位置・ホイール・ドラッグ |
 | `src/language.hpp` / `assets/languages/` | 日本語・英語の言語パック |
 | `src/tracking.hpp` / `src/tracking_application.hpp` | 記録区間・履歴・統計・自動観戦・保存 |
