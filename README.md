@@ -124,6 +124,8 @@ In a match's chat field, choosing `/os` as the recipient sends the message to th
 
 The console shows server responses and outgoing commands. For example, use `t /os history username` to fetch a player's history, `t /os stored` to list stored games, and `t /os continue .ID` to resume a stored game. Connection logs are saved in `App/logs/`.
 
+In console and chat input fields, ↑ recalls an older sent input and ↓ moves to a newer one. Moving past the newest entry restores your draft and cursor position. Each field retains up to 100 sent inputs during the current connection, with separate histories for each chat recipient and each match/recipient pair. Consecutive identical inputs appear once; failed sends are excluded. The keys remain available for candidate selection during Japanese input.
+
 The console output and input field use monospaced fonts. Drag the vertical and horizontal scrollbars to navigate. After clicking the output area, PageUp / PageDown moves one page at a time, and Home / End moves to the beginning or end. New responses do not change the scroll position while you are reading earlier output. **Latest** returns to the end.
 
 Drag across the output to select text over multiple lines. Ctrl+C or **Copy** copies the selection, and Ctrl+A selects all output.
@@ -139,6 +141,7 @@ Drag across the output to select text over multiple lines. Ctrl+C or **Copy** co
 | F11 | Toggle fullscreen |
 | F12 | Save a screenshot in `App/Screenshot/` |
 | Tab / Shift+Tab | Move between input fields |
+| ↑ / ↓ in console or chat input | Recall older / newer sent input |
 | Ctrl+A / C / V | Select all / copy / paste in an input field |
 | Esc | Close a dialog |
 
@@ -186,6 +189,8 @@ With Python 3, run `python tests/gui_session_smoke.py` to check registered and u
 
 Add `--lobby-events` to run a 64-second check of live match and request notifications, the absence of periodic lobby queries, and the 60-second keepalive.
 
+Add `--input-history` to check console and chat history, draft restoration, recipient isolation, Japanese input protection and failed sends in the actual app.
+
 Run `python tests/privacy_tests.py --history --git-objects --package build/GGSB-windows-x64.zip` to check published files, every branch's history, recovery refs, unreachable Git objects and the distribution ZIP for absolute paths or private network addresses. Detected values are not printed. Add `--forbid-file filename` to check that a file is absent from history and the ZIP as well.
 
 Use the following startup options to preview a screen:
@@ -212,6 +217,7 @@ Enter your account to verify authentication and play on the live GGS server. Cur
 | `src/screens.hpp` / `src/ui.hpp` | Drawing boards, graphs, the lobby, input fields and other controls |
 | `src/notebook_screens.hpp` | Multiple-match and statistics-by-opponent screens |
 | `src/console.hpp` / `src/console_screens.hpp` | Console text selection, scrolling and monospaced display |
+| `src/input_history.hpp` | Sent input history and draft restoration |
 | `src/chat_screens.hpp` | Private and public chat display and input |
 | `src/sound_settings.hpp` | Audio volume and per-conversation notification preferences |
 | `src/scroll.hpp` | List scroll positions, wheel input and dragging |
@@ -347,6 +353,8 @@ GGFには開始局面・着手・選手名・受信した評価値・結果を�
 
 コンソールにはサーバーの応答と送信コマンドが表示されます。たとえば `t /os history ユーザー名` で対局履歴、`t /os stored` で保存された対局、`t /os continue .ID` で保存対局の再開を操作できます。送受信ログは `App/logs/` に保存します。
 
+コンソールとチャットの入力欄では、↑で以前に送信した入力、↓で新しい入力を呼び出せます。最新の入力より先に進むと、編集中の下書きとカーソル位置に戻ります。接続中は各入力欄に最大100件の履歴を保持し、チャットの宛先ごと、対局と宛先の組み合わせごとに分けます。連続した同じ入力は1件にまとめ、送信に失敗した入力は追加しません。日本語変換中の上下キーは、変換候補の選択に使えます。
+
 コンソールの出力と入力欄は等幅フォントです。縦横のスクロールバーをドラッグして移動できます。出力欄をクリックしてから、PageUp / PageDownで1ページずつ、Home / Endで先頭・末尾へ移動できます。過去の出力を読んでいる間は、新しい応答を受信しても表示位置を維持します。「最新に戻る」で末尾の表示に戻ります。
 
 出力をドラッグすると複数行の文字を選択できます。Ctrl+Cまたは「コピー」で選択部分をコピーし、Ctrl+Aで全出力を選択できます。
@@ -362,6 +370,7 @@ GGFには開始局面・着手・選手名・受信した評価値・結果を�
 | F11 | 全画面表示を切り替える |
 | F12 | `App/Screenshot/` に画面を保存 |
 | Tab / Shift+Tab | 入力欄を移動 |
+| コンソール・チャット入力欄の↑ / ↓ | 以前 / 新しい送信済み入力を呼び出す |
 | Ctrl+A / C / V | 入力欄の全選択・コピー・貼り付け |
 | Esc | ダイアログを閉じる |
 
@@ -409,6 +418,8 @@ Python 3が使える環境では、`python tests/gui_session_smoke.py` で登録
 
 `--lobby-events` を付けると、64秒間のテストで対局・募集の通知による更新、定期的な一覧取得がないこと、60秒ごとの切断防止通信を確認できます。
 
+`--input-history` を付けると、実際のアプリでコンソール・チャットの入力履歴、下書きの復元、宛先ごとの履歴、日本語変換中の操作、送信失敗時の処理を確認できます。
+
 `python tests/privacy_tests.py --history --git-objects --package build/GGSB-windows-x64.zip` で、公開対象・全ブランチの履歴・復旧用参照・参照されていないGitオブジェクト・配布ZIPに絶対パスや内部ネットワークのアドレスが残っていないか確認できます。検出した値は出力しません。`--forbid-file ファイル名` を追加すると、そのファイルが履歴やZIPに残っていないかも確認できます。
 
 画面確認用に、次の起動オプションを使えます。
@@ -435,6 +446,7 @@ cd App
 | `src/screens.hpp` / `src/ui.hpp` | 盤・グラフ・ロビー・入力欄などの描画 |
 | `src/notebook_screens.hpp` | 複数対局と相手別成績の画面 |
 | `src/console.hpp` / `src/console_screens.hpp` | コンソールの文字選択・スクロール・等幅表示 |
+| `src/input_history.hpp` | 送信した入力の履歴・下書きの復元 |
 | `src/chat_screens.hpp` | 個人チャット・全体チャットの表示と入力 |
 | `src/sound_settings.hpp` | 音量と会話ごとの通知音設定 |
 | `src/scroll.hpp` | 一覧のスクロール位置・ホイール・ドラッグ |
