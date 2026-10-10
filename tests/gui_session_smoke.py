@@ -1,11 +1,13 @@
 """Native GGSB login checks against a loopback-only GGS fixture."""
 from pathlib import Path
+import argparse
 import socket
 import subprocess
 import threading
 import hashlib
 import shutil
 import tempfile
+import time
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = None
@@ -37,7 +39,10 @@ def run(registered, screen, screenshot, rejected=False, language=None):
     if RUNTIME is None:
         RUNTIME = prepare_runtime()
     original_user_data = user_data_fingerprint()
+    lobby_events = screen == "lobby-events"
+    duration = 64 if lobby_events else 3
     commands = []
+    command_times = []
     errors = []
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))
@@ -48,7 +53,7 @@ def run(registered, screen, screenshot, rejected=False, language=None):
     def serve():
         try:
             with listener.accept()[0] as client:
-                client.settimeout(15)
+                client.settimeout(duration + 15)
                 stream = client.makefile("rb")
 
                 def send(text):
@@ -73,6 +78,7 @@ def run(registered, screen, screenshot, rejected=False, language=None):
                         break
                     command = raw.decode("utf-8").strip()
                     commands.append(command)
+                    command_times.append(time.monotonic())
                     if command == "who":
                         marker = "+" if registered else "-"
                         send(f": who 2 idle online ip-addr hostname\n|alice {marker} 00:00 00:01 127.0.0.1 localhost <=\n|bob + 00:00 00:02\nREADY\n")
@@ -104,6 +110,12 @@ def run(registered, screen, screenshot, rejected=False, language=None):
                     elif command == "t /os request":
                         request_id = ".25" if service_seen else ".24"
                         send(f"/os: request 1\n|{request_id} 2300 bob 15:00/00:02/00:00 s8r14 R 2200 alice\nREADY\n")
+                        if lobby_events:
+                            # Update an already-loaded lobby without another snapshot query.
+                            send("/os: + match .118 2200 alice 2300 bob 8 R\nREADY\n")
+                            send("/os: - match .117 2300 bob 2200 carol s8r14 R +16.00 .200\nREADY\n")
+                            send("/os: - .24 2300 bob 15:00/00:02/00:00 s8r14 R 2200 alice\nREADY\n")
+                            send("/os: + .25 2200 alice 15:00/00:02/00:00 8 R 2300 bob\nREADY\n")
                     elif command == "t /os match":
                         match_id = ".118" if service_seen else ".117"
                         send(f"/os: match 1\n|{match_id} 2300 bob 2200 carol s8r14 R\nREADY\n")
@@ -120,7 +132,7 @@ def run(registered, screen, screenshot, rejected=False, language=None):
     result = ROOT / "build" / f"gui-session-{label}-{screen or 'lobby'}.txt"
     result.unlink(missing_ok=True)
     args = [str(RUNTIME / "GGSB.exe"), "--mute", "--verify-session", str(port), label, str(result),
-            "--capture", str(ROOT / "docs" / screenshot), "--capture-at", "2", "--quit-after", "3"]
+            "--capture", str(ROOT / "docs" / screenshot), "--capture-at", "2", "--quit-after", str(duration)]
     if screen:
         args += ["--session-screen", screen]
     if language:
@@ -130,7 +142,7 @@ def run(registered, screen, screenshot, rejected=False, language=None):
     startup.wShowWindow = subprocess.SW_HIDE
     process = subprocess.Popen(args, cwd=RUNTIME, creationflags=subprocess.CREATE_NO_WINDOW, startupinfo=startup)
     try:
-        assert process.wait(timeout=20) == 0
+        assert process.wait(timeout=duration + 20) == 0
     finally:
         if process.poll() is None:
             process.terminate()
@@ -147,6 +159,15 @@ def run(registered, screen, screenshot, rejected=False, language=None):
     if not rejected:
         assert "t /os who 8 a" in commands and "t /os who 8r a" in commands, commands
         assert "chann + .chat .tourney" in commands, commands
+        assert "t /os notify + *" in commands, commands
+        expected_queries = 2 if screen == "service-chat" else 1
+        for query in ("t /os match", "t /os who 8 a", "t /os who 8r a", "t /os request"):
+            assert commands.count(query) == expected_queries, (query, commands)
+    if lobby_events:
+        assert "live match start/end and request notifications" in result.read_text(encoding="utf-8"), result
+        keepalives = [when for command, when in zip(commands, command_times) if not command]
+        assert len(keepalives) == 1 and keepalives[0] - command_times[0] >= 59, commands
+        print("PASS: no 30-second lobby polling, live match/request updates, 60-second keepalive")
     if screen == "profile":
         assert "finger bob" in commands and "t /os finger bob" not in commands, commands
     if screen == "stats":
@@ -170,6 +191,11 @@ def run(registered, screen, screenshot, rejected=False, language=None):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--lobby-events", action="store_true", help="Verify live lobby notifications and keepalive over 64 seconds")
+    if parser.parse_args().lobby_events:
+        run(True, "lobby-events", "../build/lobby-events.png")
+        raise SystemExit(0)
     run(False, "", "guest-lobby.png")
     run(False, "players", "guest-players.png")
     run(False, "requests", "guest-requests.png")

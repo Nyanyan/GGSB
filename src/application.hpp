@@ -40,7 +40,7 @@ public:
     bool graph_dragging = false;
     bool playback = false, legal_hints = true, sound = true, animations = true, flip_board = false;
     bool open_for_matches = true, rated = true, save_login = false;
-    uint64_t last_playback = 0, last_refresh = 0;
+    uint64_t last_playback = 0;
     int epoch = 0;
     std::string connected_scope;
     ui::Field host{U"skatgame.net"}, port{U"5000"}, username, password, filter, command, chat_input;
@@ -206,7 +206,7 @@ public:
         connection->start(); page = ConnectionPage; modal.clear(); p.focus.clear(); notify(ui::tr(U"接続を開始しました"));
     }
     void refresh_users() { send("t /os who 8 a"); send("t /os who 8r a"); }
-    void refresh() { send("t /os match"); refresh_users(); send("t /os request"); last_refresh = now(); }
+    void refresh() { send("t /os match"); refresh_users(); send("t /os request"); }
     void show_player_info(const std::string& name, bool game_stats = false) {
         if (auto info_request = player_info_command(name, game_stats); info_request && send(*info_request)) { page = 3; p.focus.clear(); }
     }
@@ -314,8 +314,8 @@ public:
                 if (!epoch) { page = 1; modal.clear(); p.focus.clear(); lobby_tab = 0; list_offset = 0; }
                 epoch = connection->epoch(); model.registered.reset(); match_settings_sent = false;
                 last_history_refresh = 0; pending_moves.clear();
+                // Connection already requested fresh lobby snapshots and subscribed to match notifications.
                 for (const auto& id : model.watches) if (!model.ensure(id).finished) { send("t /os watch + " + id); model.ensure(id).watch_ms = now(); }
-                refresh();
             }
             for (const auto& message : messages) {
                 ggs::BoardMessage board;
@@ -332,7 +332,6 @@ public:
                 send(std::string("t /os open ") + (open_for_matches ? "1" : "0"));
                 send(std::string("t /os rated ") + (rated ? "+" : "-"));
             }
-            if (online() && now() - last_refresh > 30000) refresh();
             tick_records();
             if (online()) for (const auto& id : model.watches) {
                 auto& m = model.ensure(id); bool need = false;

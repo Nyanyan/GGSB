@@ -35,7 +35,7 @@ void Main() {
     bool audio_verified = false;
     FilePath session_result;
     int session_port = 0;
-    bool expected_registered = false, expected_rejected = false, session_verified = false, chat_verified = false;
+    bool expected_registered = false, expected_rejected = false, session_verified = false, chat_verified = false, lobby_verified = false;
     String session_screen;
     auto chat_screen = [&]() { return session_screen == U"chat" || session_screen == U"global-chat" || session_screen == U"tourney-chat" || session_screen == U"service-chat"; };
     auto chat_destination = [&]() -> std::string { return session_screen == U"global-chat" ? ".chat" : session_screen == U"tourney-chat" ? ".tourney" : session_screen == U"service-chat" ? "/os" : "bob"; };
@@ -188,6 +188,19 @@ void Main() {
                 app.submit_conversation();
                 if (session_screen == U"service-chat") app.refresh();
             }
+        }
+        if (session_verified && !lobby_verified && session_screen == U"lobby-events" && Scene::Time() > 1.5) {
+            const auto started = app.model.matches.find(".118"), ended = app.model.matches.find(".117");
+            const bool success = app.online() && app.epoch == 1 && app.page == 1
+                && started != app.model.matches.end() && started->second.listed && !started->second.finished
+                && started->second.player[0] == "alice" && started->second.player[1] == "bob"
+                && ended != app.model.matches.end() && !ended->second.listed && ended->second.finished
+                && ended->second.winner() == 0 && ended->second.result_p0 == 16
+                && !app.model.requests.contains(".24") && app.model.requests.contains(".25");
+            TextWriter result{session_result, TextEncoding::UTF8_NO_BOM};
+            result.writeln(success ? U"PASS: live match start/end and request notifications update the lobby" : U"FAIL: lobby notification updates");
+            if (!success) return;
+            lobby_verified = true;
         }
         if (session_verified && !chat_verified && chat_screen()) {
             const auto target = chat_destination();

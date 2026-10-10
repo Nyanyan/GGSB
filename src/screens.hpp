@@ -284,7 +284,6 @@ inline void Application::draw_arena() {
 inline void Application::draw_lobby() {
     using namespace ui;
     p.label(U"GGS /os", 14, 334, 142, mint);
-    p.label(mode == Mode::Demo ? ui::tr(U"サンプルの対局一覧を表示しています") : ui::tr(U"30秒ごとに更新 · 対局を選んで観戦"), 13, 334, 166, muted);
     p.input("filter", filter, {1134, 138, 235, 43}, ui::tr(U"プレイヤー・IDで検索"));
     if (p.button({1384, 138, 78, 43}, ui::tr(U"更新"))) refresh();
     if (may_match() && p.button({1474, 138, 100, 43}, ui::tr(U"申込"), true)) challenge();
@@ -345,7 +344,6 @@ inline void Application::draw_lobby() {
 inline void Application::draw_users() {
     using namespace ui;
     p.label(ui::tr(U"ONLINE PLAYERS"), 13, 334, 147, mint);
-    p.label(Format(model.users.size()) + ui::tr(U" players · 通常 (8) のレーティング順"), 14, 334, 175, muted);
     p.input("filter", filter, {1175, 145, 272, 43}, ui::tr(U"プレイヤー名を検索"));
     if (p.button({1461, 145, 113, 43}, ui::tr(U"更新"))) refresh_users();
     p.card({332, 215, 1242, 745});

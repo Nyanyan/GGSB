@@ -53,16 +53,18 @@ static void authenticate(SOCKET socket, bool registered = true) {
     write_all(socket, "pass"); std::this_thread::sleep_for(std::chrono::milliseconds(20)); write_all(socket, "word: ");
     check(read_line(socket) == "secret-example", "password");
     write_all(socket, "\r\nREADY\r\n");
-    bool chat_joined = false;
+    bool chat_joined = false, all_matches_subscribed = false;
     for (int i = 0; i < 11; ++i) {
         const auto command = read_line(socket); check(!command.empty(), "initial command");
         if (command == "chann + .chat .tourney") chat_joined = true;
+        if (command == "t /os notify + *") all_matches_subscribed = true;
         if (command == "who") write_all(socket, std::string(": who 1 idle online ip-addr hostname\n|alice ") + (registered ? "+" : "-") + " 00:00 00:01 127.0.0.1 localhost <=\nREADY\n");
         if (command == "t /os who 8 a") write_all(socket, "/os: who 1 change: win draw loss matches\n|alice + 2200.5@100.0\nREADY\n");
         if (command == "t /os who 8r a") write_all(socket, "/os: who 1 change: win draw loss matches\n|alice + 2400.7@80.0\nREADY\n");
         check(command.find("rated") == std::string::npos && command.find(" open ") == std::string::npos, "no match settings before identity");
     }
     check(chat_joined, "public and tournament channels joined after login and reconnect");
+    check(all_matches_subscribed, "all match start/end notifications subscribed after login and reconnect");
 }
 int main() {
     WSADATA wsa{}; WSAStartup(MAKEWORD(2, 2), &wsa);
