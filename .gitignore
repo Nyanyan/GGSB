@@ -1,0 +1,7 @@
+.vs/
+build/
+Intermediate/
+*.vcxproj.user
+/App/
+__pycache__/
+*.py[cod]
