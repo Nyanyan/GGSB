@@ -3,6 +3,7 @@ $workspacePath = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $packagePath = Join-Path $workspacePath 'build\GGSB-windows-x64'
 New-Item -ItemType Directory -Force -Path $packagePath | Out-Null
 Copy-Item -LiteralPath (Join-Path $workspacePath 'App\GGSB.exe') -Destination $packagePath
+& (Join-Path $PSScriptRoot 'sanitize-binary.ps1') -Path (Join-Path $packagePath 'GGSB.exe')
 if (-not (Test-Path -LiteralPath (Join-Path $workspacePath 'App\THIRD_PARTY_LICENSES.txt'))) {
     $licenseProcess = Start-Process -FilePath (Join-Path $workspacePath 'App\GGSB.exe') -WorkingDirectory (Join-Path $workspacePath 'App') -WindowStyle Hidden -ArgumentList '--mute --quit-after 0' -PassThru
     $licenseProcess.WaitForExit()
