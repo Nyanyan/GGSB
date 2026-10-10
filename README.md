@@ -18,6 +18,8 @@ Run the built executable, `App/GGSB.exe`. The connection screen opens. Select a 
 
 After connecting, the lobby lists current matches. Click **Watch** to open a board, or **Challenge** to configure a regular or synchro match, a random starting position and the clocks. Leave the opponent blank to send an open request. You can accept or decline incoming challenges from **Requests** in the lobby.
 
+Match and request lists update when GGS sends notifications. **Refresh** fetches the lists again.
+
 Unregistered accounts can watch matches. The app does not show an error just because the account is unregistered. Controls for sending or accepting challenges and changing playing settings appear when you log in with a registered account.
 
 Display settings and the last server address are saved in `App/settings.ini`. You can select an ID and password from the accounts saved on the connection screen.
@@ -182,6 +184,8 @@ The GUI smoke test also verifies closing and reopening chats, retaining drafts, 
 
 With Python 3, run `python tests/gui_session_smoke.py` to check registered and unregistered login in the actual app. This test connects only to a local mock server and verifies the lobby after login, both ratings, the destinations of profile and game-statistics queries, private and public chat sending and receiving, visibility of playing controls, and the absence of playing-setting commands for unregistered accounts.
 
+Add `--lobby-events` to run a 64-second check of live match and request notifications, the absence of periodic lobby queries, and the 60-second keepalive.
+
 Run `python tests/privacy_tests.py --history --git-objects --package build/GGSB-windows-x64.zip` to check published files, every branch's history, recovery refs, unreachable Git objects and the distribution ZIP for absolute paths or private network addresses. Detected values are not printed. Add `--forbid-file filename` to check that a file is absent from history and the ZIP as well.
 
 Use the following startup options to preview a screen:
@@ -236,6 +240,8 @@ Siv3D 0.6.16で作った、GGS（Generic Game Server）用のオセロGUIです�
 ![起動時の接続画面](docs/startup.png)
 
 接続するとロビーに対局一覧が表示されます。「観戦する」で盤を開くか、「対局を申し込む」で通常戦・シンクロ戦・ランダム開始局面と時計を設定してください。相手を空欄にすると公開募集になります。届いた申込は、ロビーの「対局募集」から受諾・辞退できます。
+
+対局と募集の一覧は、GGSからの通知を受けて更新します。「更新」を押すと一覧を取得し直します。
 
 未登録アカウントでも観戦できます。未登録であることを理由にエラーは表示しません。対局申込・受諾・対戦設定などの操作は、登録済みアカウントでログインしたときに表示します。
 
@@ -400,6 +406,8 @@ GUIテストは実行ファイルとランタイムだけを `build/` 内の専�
 GUIの動作確認では、チャットを閉じて開き直す操作、下書きの保持、観戦の終了と再開も検証します。観戦終了後に遅れて届いた盤面通知で観戦が再開しないことも確認します。音の検証では、着手音と通知音の出力、音量を下げた場合と0％にした場合、会話ごとのミュートと全体のチャット通知設定を確認します。また、再起動後に音量と会話ごとの設定を復元できることも検証します。
 
 Python 3が使える環境では、`python tests/gui_session_smoke.py` で登録済み・未登録のログインを実際のアプリで確認できます。このテストではローカルの模擬サーバーだけに接続し、ログイン後のロビー表示、2種類のレーティング、プロフィールと対局成績の問い合わせ先、個人チャット・全体チャットの送受信、対戦操作の表示可否、未登録時に対戦設定コマンドを送らないことを検証します。
+
+`--lobby-events` を付けると、64秒間のテストで対局・募集の通知による更新、定期的な一覧取得がないこと、60秒ごとの切断防止通信を確認できます。
 
 `python tests/privacy_tests.py --history --git-objects --package build/GGSB-windows-x64.zip` で、公開対象・全ブランチの履歴・復旧用参照・参照されていないGitオブジェクト・配布ZIPに絶対パスや内部ネットワークのアドレスが残っていないか確認できます。検出した値は出力しません。`--forbid-file ファイル名` を追加すると、そのファイルが履歴やZIPに残っていないかも確認できます。
 
