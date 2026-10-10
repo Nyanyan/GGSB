@@ -9,6 +9,7 @@ namespace ggsb::ui {
 inline const ColorF background{0.035, 0.053, 0.074}, panel{background}, raised{background};
 inline const ColorF line{0.14, 0.19, 0.24}, text{0.88, 0.93, 0.95}, muted{0.43, 0.54, 0.61};
 inline const ColorF mint{0.39, 0.91, 0.73}, blue{0.41, 0.65, 1.0}, orange{1.0, 0.66, 0.36}, red{1.0, 0.40, 0.43};
+inline const ColorF mint_fill{88 / 255.0, 205 / 255.0, 164 / 255.0};
 inline String str(const std::string& value) { return Unicode::FromUTF8(value); }
 inline String signed_value(double value, int decimals = 1) { return (value >= 0 ? U"+" : U"") + ToString(value, decimals); }
 inline String clock_text(int seconds) {
@@ -95,7 +96,8 @@ public:
     bool button(RectF r, String title, bool primary = false, bool enabled = true, ColorF accent = mint, double text_size = 16) const {
         enabled = enabled && !blocked;
         const bool hover = enabled && r.mouseOver();
-        ColorF bg = primary && enabled ? accent : background;
+        const ColorF fill = accent == mint && r.w * r.h >= 2500 ? mint_fill : accent;
+        ColorF bg = primary && enabled ? fill : background;
         r.draw(bg).drawFrame(hover ? 1.5 : 1, enabled && (hover || primary) ? accent : line);
         const double size = Min(text_size, text_size * (r.w - 16) / Max(1.0, font(title).region(text_size).w));
         font(title).drawAt(size, r.center(), !enabled ? muted : primary ? background : text);
@@ -202,11 +204,11 @@ public:
         label(title, 12, pos.x + 9, pos.y + 3, color);
     }
     void logo(Vec2 c, double scale = 1) const {
-        RectF{c.x - 21 * scale, c.y - 21 * scale, 42 * scale, 42 * scale}.draw(mint);
-        Circle{c.x - 7 * scale, c.y - 7 * scale, 7 * scale}.draw(background);
-        Circle{c.x + 7 * scale, c.y + 7 * scale, 7 * scale}.draw(background);
-        Circle{c.x + 7 * scale, c.y - 7 * scale, 7 * scale}.draw(ColorF{0.96});
-        Circle{c.x - 7 * scale, c.y + 7 * scale, 7 * scale}.draw(ColorF{0.96});
+        RectF{c.x - 21 * scale, c.y - 21 * scale, 42 * scale, 42 * scale}.draw(mint_fill);
+        Circle{c.x - 7 * scale, c.y - 7 * scale, 7 * scale}.draw(ColorF{0.96});
+        Circle{c.x + 7 * scale, c.y + 7 * scale, 7 * scale}.draw(ColorF{0.96});
+        Circle{c.x + 7 * scale, c.y - 7 * scale, 7 * scale}.draw(background);
+        Circle{c.x - 7 * scale, c.y + 7 * scale, 7 * scale}.draw(background);
     }
 };
 }
