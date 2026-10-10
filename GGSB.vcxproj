@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals"><VCProjectVersion>17.0</VCProjectVersion><ProjectGuid>{98C5A95D-4E15-4721-907E-89D708D54696}</ProjectGuid><Keyword>Win32Proj</Keyword><RootNamespace>GGSB</RootNamespace><WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration"><ConfigurationType>Application</ConfigurationType><PlatformToolset>v143</PlatformToolset><CharacterSet>Unicode</CharacterSet><UseDebugLibraries Condition="'$(Configuration)'=='Debug'">true</UseDebugLibraries><UseDebugLibraries Condition="'$(Configuration)'=='Release'">false</UseDebugLibraries></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <Siv3DSDK Condition="'$(Siv3DSDK)'==''">$(SIV3D_0_6_16)</Siv3DSDK>
+    <OutDir>$(ProjectDir)build\$(Configuration)\</OutDir><IntDir>$(ProjectDir)build\$(Configuration)\obj\</IntDir>
+    <IncludePath>$(Siv3DSDK)\include;$(Siv3DSDK)\include\ThirdParty;$(IncludePath)</IncludePath><LibraryPath>$(Siv3DSDK)\lib\Windows;$(LibraryPath)</LibraryPath>
+    <LocalDebuggerWorkingDirectory>$(ProjectDir)App</LocalDebuggerWorkingDirectory>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile><WarningLevel>Level4</WarningLevel><ConformanceMode>true</ConformanceMode><LanguageStandard>stdcpplatest</LanguageStandard><AdditionalOptions>/utf-8 /Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions><PrecompiledHeader>Use</PrecompiledHeader><ForcedIncludeFiles>stdafx.h</ForcedIncludeFiles><PreprocessorDefinitions>NOMINMAX;WIN32_LEAN_AND_MEAN;NOGDI;_ENABLE_EXTENDED_ALIGNED_STORAGE;_SILENCE_ALL_CXX23_DEPRECATION_WARNINGS;_SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions><BuildStlModules>false</BuildStlModules></ClCompile>
+    <Link><SubSystem>Windows</SubSystem><GenerateDebugInformation Condition="'$(Configuration)'=='Debug'">true</GenerateDebugInformation><GenerateDebugInformation Condition="'$(Configuration)'=='Release'">false</GenerateDebugInformation><DelayLoadDLLs>advapi32.dll;crypt32.dll;dwmapi.dll;gdi32.dll;imm32.dll;ole32.dll;oleaut32.dll;opengl32.dll;shell32.dll;shlwapi.dll;user32.dll;winmm.dll;ws2_32.dll</DelayLoadDLLs></Link>
+    <PostBuildEvent><Command>copy /Y "$(TargetPath)" "$(ProjectDir)App\GGSB.exe"</Command></PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'"><ClCompile><Optimization>MaxSpeed</Optimization><RuntimeLibrary>MultiThreaded</RuntimeLibrary><PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile></ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'"><ClCompile><Optimization>Disabled</Optimization><RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary><PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile></ItemDefinitionGroup>
+  <ItemGroup><ClCompile Include="Main.cpp" /><ClCompile Include="stdafx.cpp"><PrecompiledHeader>Create</PrecompiledHeader></ClCompile></ItemGroup>
+  <ItemGroup><ClInclude Include="stdafx.h" /><ClInclude Include="src\protocol.hpp" /><ClInclude Include="src\othello.hpp" /><ClInclude Include="src\model.hpp" /><ClInclude Include="src\network.hpp" /><ClInclude Include="src\demo.hpp" /><ClInclude Include="src\ui.hpp" /><ClInclude Include="src\application.hpp" /><ClInclude Include="src\screens.hpp" /><ClInclude Include="src\tracking.hpp" /><ClInclude Include="src\tracking_application.hpp" /><ClInclude Include="src\notebook_screens.hpp" /><ClInclude Include="src\accounts.hpp" /><ClInclude Include="src\account_application.hpp" /></ItemGroup>
+  <ItemGroup><ClInclude Include="src\console.hpp" /><ClInclude Include="src\console_screens.hpp" /><ClInclude Include="src\chat_screens.hpp" /><ClInclude Include="src\scroll.hpp" /><ClInclude Include="src\language.hpp" /><ClInclude Include="src\preview.hpp" /></ItemGroup>
+  <ItemGroup><ResourceCompile Include="App\Resource.rc" /></ItemGroup>
+  <ItemGroup><LanguagePack Include="assets\languages\*.json" /></ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="CopyLanguagePacks" AfterTargets="Build">
+    <MakeDir Directories="$(ProjectDir)App\languages" />
+    <Copy SourceFiles="@(LanguagePack)" DestinationFolder="$(ProjectDir)App\languages" SkipUnchangedFiles="true" />
+  </Target>
+</Project>
