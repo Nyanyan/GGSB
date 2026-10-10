@@ -382,17 +382,22 @@ inline void Application::draw_settings() {
     p.label(Format(accounts.accounts().size()) + ui::tr(U"件のアカウントをローカル保存"), 14, 360, 599, mint);
     p.label(ui::tr(U"IDとパスワードはWindows DPAPIで暗号化します。"), 13, 360, 635, muted);
     p.clipped(connection ? connection_status(connection->status()) : ui::tr(U"未接続"), 13, {360, 703, 544, 32}, online() ? mint : muted);
-    p.card({958, 143, 616, 650}); p.label(ui::tr(U"表示・対局設定"), 23, 985, 166, text, true);
+    p.card({958, 143, 616, 794}); p.label(ui::tr(U"表示・対局設定"), 23, 985, 166, text, true);
     p.label(ui::tr(U"言語"), 18, 985, 225, text, true);
     draw_language_picker({985, 262, 561, 40});
     if (p.toggle({985, 335, 561, 44}, ui::tr(U"合法手のヒントを表示"), legal_hints)) save_settings();
-    if (p.toggle({985, 392, 561, 44}, ui::tr(U"石を置く音"), sound)) save_settings();
-    if (p.toggle({985, 449, 561, 44}, ui::tr(U"石が返るアニメーション"), animations)) save_settings();
+    if (p.toggle({985, 389, 561, 44}, ui::tr(U"石が返るアニメーション"), animations)) save_settings();
+    if (p.toggle({985, 443, 561, 44}, ui::tr(U"石を置く音"), sound)) save_settings();
+    if (p.toggle({985, 497, 561, 44}, ui::tr(U"チャット受信時に音を鳴らす"), audio.chat_enabled)) save_settings();
+    p.label(ui::tr(U"音量"), 18, 985, 553, text, true);
+    p.mono(Format(audio.volume) + U"%").draw(18, Arg::topRight = Vec2{1546, 553}, text);
+    if (p.slider("audio-volume", {985, 583, 561, 34}, audio.volume)) save_settings();
+    if (p.button({985, 633, 280, 36}, ui::tr(U"通知音を試す"))) chat_sound.playOneShot(audio.gain());
     if (may_match()) {
-        if (p.toggle({985, 506, 561, 44}, ui::tr(U"対局申込を受け付ける"), open_for_matches)) send(std::string("t /os open ") + (open_for_matches ? "1" : "0"));
-        if (p.toggle({985, 563, 561, 44}, ui::tr(U"レーティング対局"), rated)) send(std::string("t /os rated ") + (rated ? "+" : "-"));
+        if (p.toggle({985, 690, 561, 44}, ui::tr(U"対局申込を受け付ける"), open_for_matches)) send(std::string("t /os open ") + (open_for_matches ? "1" : "0"));
+        if (p.toggle({985, 744, 561, 44}, ui::tr(U"レーティング対局"), rated)) send(std::string("t /os rated ") + (rated ? "+" : "-"));
     }
-    if (p.button({985, may_match() ? 650.0 : 526.0, 561, 44}, ui::tr(U"棋譜を開く"))) open_record();
+    if (p.button({985, may_match() ? 818.0 : 690.0, 561, 44}, ui::tr(U"棋譜を開く"))) open_record();
 
 }
 
@@ -552,6 +557,8 @@ inline void Application::draw_inspector(Match& m) {
     p.card({1295, 632, 279, 328});
     p.label(ui::tr(U"チャット"), 17, 1314, 647, text, true);
     p.tag(U"/os", {1506, 645});
+    bool match_sound = chat_sound_enabled("match:" + m.id);
+    if (p.toggle({1380, 641, 115, 35}, ui::tr(U"通知音"), match_sound)) set_chat_sound("match:" + m.id, match_sound);
     auto& chat = model.match_chat[m.id];
     int chat_y = 685;
     const int chat_max = ListScroll::maximum(int(chat.size()), 4);

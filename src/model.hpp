@@ -395,6 +395,8 @@ public:
     std::map<std::string, ChatThread> threads{{".chat", {}}, {".tourney", {}}};
     std::vector<std::string> order{".chat", ".tourney"};
     std::string selected = ".chat";
+    std::string own_username;
+    std::set<std::string> received;
     bool is_open(const std::string& target) const { return std::find(order.begin(), order.end(), target) != order.end(); }
     ChatThread& ensure(const std::string& target) {
         auto it = threads.try_emplace(target).first;
@@ -412,10 +414,11 @@ public:
         if (selected == target) selected = ".chat";
         return true;
     }
-    void append(const std::string& target, const std::string& sender, const std::string& text, bool outgoing = false) {
+    void append(const std::string& target, const std::string& sender, const std::string& text, bool outgoing = false, bool notify = true) {
         auto& thread = ensure(target);
         thread.messages.push_back({sender, text, outgoing});
         if (!outgoing) ++thread.unread;
+        if (notify && !outgoing && sender != own_username) received.insert(target);
         while (thread.messages.size() > 500) { thread.messages.pop_front(); ++thread.first_message; }
     }
     void receive_service(const ggs::Message& message) {
@@ -429,7 +432,12 @@ public:
         std::string text = ggs::trim(message.head.substr(colon + 1));
         if (text.empty() && message.body.empty()) return;
         for (const auto& line : message.body) text += "\n" + line;
-        append(service, service, text);
+        const auto header = ggs::tokenize(message.head);
+        std::string game_id; int sub = -1;
+        const bool protocol_update = header.size() >= 2 && (header[1] == "join" || header[1] == "update" || header[1] == "end"
+            || header[1] == "match" || header[1] == "who" || header[1] == "request" || header[1] == "+" || header[1] == "-"
+            || ggs::split_game_id(header[1], game_id, sub));
+        append(service, service, text, false, !protocol_update);
     }
     bool receive(const ggs::Message& message) {
         // Central GGS: "name: text" or ".channel name: text". Service replies
@@ -489,6 +497,7 @@ public:
     bool stop_watching(const std::string& id) {
         if (!can_stop_watching(id)) return false;
         watches.erase(id); stopped_watches.insert(id); moved_matches.erase(id);
+        chats.received.erase("match:" + id);
         matches.at(id).watching = false;
         if (selected == id) selected.clear();
         return true;
@@ -506,6 +515,7 @@ public:
             if (fields.size() >= 2 && (fields[0] == username || fields.back() == "<=") && (fields[1] == "+" || fields[1] == "-")) registered = fields[1] == "+";
         }
         append_console(message);
+        chats.own_username = username;
         chats.receive_service(message);
         if (chats.receive(message)) return;
         std::vector<ggs::MatchRow> rows;
@@ -613,6 +623,10 @@ public:
             chat.push_back(ggs::trim(message.head.substr(message.head.find(head[1]) + head[1].size())));
             for (const auto& line : message.body) chat.push_back(line);
             while (chat.size() > 300) chat.pop_front();
+            if (head.size() >= 5 && (head[2] == "A" || head[2] == "O") && head[4].ends_with(":")) {
+                const auto sender = head[4].substr(0, head[4].size() - 1);
+                if (sender != username && !stopped_watches.count(match_id)) chats.received.insert("match:" + match_id);
+            }
         }
     }
     Match& update_row(const ggs::MatchRow& row, bool new_active = false) {

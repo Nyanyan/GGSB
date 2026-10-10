@@ -34,6 +34,7 @@ inline void Application::draw_chat() {
     if (p.button({1177, 141, 115, 36}, ui::tr(U"最新に戻る"))) state.output.scroll_to(state.output.max_top());
     if (p.button({1304, 141, 143, 36}, ui::tr(U"表示をクリア"))) { thread.first_message += thread.messages.size(); thread.messages.clear(); state = {}; }
     if (p.button({1459, 141, 115, 36}, ui::tr(U"閉じる"))) { close_chat(target); return; }
+    draw_chat_sound_toggle(target, {1135, 182, 439, 31});
     p.card({332, 215, 1242, 674});
     draw_text_output(state.output, output, "conversation-output");
     auto& draft = chat_drafts[target];

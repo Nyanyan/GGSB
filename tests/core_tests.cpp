@@ -5,12 +5,63 @@
 #include "../src/tracking.hpp"
 #include "../src/console.hpp"
 #include "../src/scroll.hpp"
+#include "../src/sound_settings.hpp"
 
 static int checks = 0;
 #define CHECK(value) do { ++checks; if (!(value)) throw std::runtime_error(std::string("line ") + std::to_string(__LINE__) + ": " #value); } while (false)
 using namespace ggsb;
 int main(int argc, char** argv) {
     try {
+        SoundSettings audio;
+        CHECK(audio.volume == 100 && !audio.chat_enabled && audio.gain() == 1);
+        CHECK(!audio.chat_due("server:5000", {"bob"}));
+        audio.chat_enabled = true;
+        CHECK(audio.chat_due("server:5000", {"bob", ".chat", ".tourney"}));
+        CHECK(!audio.chat_due("server:5000", {"/os"}) && !audio.chat_due("server:5000", {}));
+        audio.set_chat("server:5000", "bob", false);
+        audio.set_chat("server:5000", ".chat", false);
+        CHECK(!audio.chat_due("server:5000", {"bob", ".chat"}));
+        CHECK(audio.chat_due("server:5000", {"bob", ".tourney"}));
+        CHECK(audio.chat_due("other:5000", {"bob"}));
+        audio.set_chat("server:5000", "/os", true);
+        CHECK(audio.chat_due("server:5000", {"/os"}));
+        CHECK(SoundSettings::key("a_b", "c") != SoundSettings::key("a", "b_c"));
+        CHECK(SoundSettings::key("server:5000", "/os") != SoundSettings::key("server:5000", "os"));
+        for (const auto& [key, enabled] : audio.chats) CHECK(SoundSettings::valid_key(key));
+        for (const auto& bad : {"", "_00", "00_", "a_00", "00_a", "gg_00", "00__00", "00_0=0", "[00]_00"}) CHECK(!SoundSettings::valid_key(bad));
+        audio.set_volume(25); CHECK(audio.gain() == 0.25);
+        audio.set_volume(-1); CHECK(audio.volume == 0 && !audio.chat_due("server:5000", {".tourney"}));
+        audio.set_volume(200); CHECK(audio.volume == 100 && audio.chat_due("server:5000", {".tourney"}));
+        ClientModel chat_notifications; chat_notifications.username = "alice";
+        chat_notifications.receive({"bob: hello", {}}, 1);
+        chat_notifications.receive({".chat bob: channel message", {}}, 2);
+        chat_notifications.receive({".tourney bob: tournament message", {}}, 3);
+        CHECK(chat_notifications.chats.received == (std::set<std::string>{"bob", ".chat", ".tourney"}));
+        chat_notifications.chats.received.clear();
+        chat_notifications.chats.append("bob", "alice", "sent message", true);
+        chat_notifications.receive({".chat alice: my echoed message", {}}, 4);
+        chat_notifications.receive({"password: ", {}}, 5);
+        CHECK(chat_notifications.chats.received.empty());
+        chat_notifications.chats.open("/os");
+        chat_notifications.receive({"/os: who 1", {"bob + 2000@100"}}, 6);
+        chat_notifications.receive({"/os: match 1", {".117 2000 bob 2100 carol s8r14 R"}}, 7);
+        chat_notifications.receive({"/os: request 0", {}}, 8);
+        CHECK(chat_notifications.chats.received.empty());
+        chat_notifications.receive({"/os: help", {"help text"}}, 9);
+        CHECK(chat_notifications.chats.received == (std::set<std::string>{"/os"}));
+        chat_notifications.chats.received.clear();
+        chat_notifications.receive({"/os: .117 A 2000 bob: match chat", {}}, 10);
+        chat_notifications.receive({"/os: .118.1 O 2000 bob: observers", {}}, 11);
+        CHECK(chat_notifications.chats.received == (std::set<std::string>{"match:.117", "match:.118"}));
+        chat_notifications.chats.received.clear();
+        chat_notifications.receive({"/os: .117.0 A 2000 alice: my message", {}}, 12);
+        CHECK(chat_notifications.chats.received.empty());
+        chat_notifications.stopped_watches.insert(".117");
+        chat_notifications.receive({"/os: .117 A 2000 bob: delayed stopped-match chat", {}}, 12);
+        CHECK(chat_notifications.chats.received.empty());
+        chat_notifications.chats.close("/os");
+        chat_notifications.receive({"/os: help", {"closed service"}}, 13);
+        CHECK(chat_notifications.chats.received.empty());
         ListScroll scrolling; int list_position = 0;
         CHECK(ListScroll::maximum(0, 9) == 0 && ListScroll::maximum(35, 9) == 26);
         scrolling.wheel(list_position, 35, 9, 0.2, 3); CHECK(list_position == 0);
@@ -289,16 +340,18 @@ int main(int argc, char** argv) {
         Game placement; placement.id = ".901"; placement.name[0] = "black"; placement.name[1] = "white";
         placement.pos = initial_position(); placement.history = {placement.pos}; placement.active = placement.history_ok = true;
         ClientModel notifications; notifications.username = "observer";
+        notifications.chats.open("/os");
         notifications.receive(board_message(placement, "8", true), 1);
-        CHECK(notifications.move_events == 0 && notifications.moved_matches.empty());
+        CHECK(notifications.move_events == 0 && notifications.moved_matches.empty() && notifications.chats.received.empty());
         demo_step(placement, random);
         notifications.receive(board_message(placement, "8", false), 2);
-        CHECK(notifications.move_events == 1 && notifications.moved_matches.count(".901"));
+        CHECK(notifications.move_events == 1 && notifications.moved_matches.count(".901") && notifications.chats.received.empty());
         notifications.moved_matches.clear();
         notifications.receive(board_message(placement, "8", false), 3);
         CHECK(notifications.move_events == 1 && notifications.moved_matches.empty());
+        notifications.chats.received.insert("match:.901");
         CHECK(notifications.can_stop_watching(".901") && notifications.stop_watching(".901"));
-        CHECK(!notifications.watches.count(".901") && !notifications.matches.at(".901").watching && notifications.selected.empty());
+        CHECK(!notifications.watches.count(".901") && !notifications.matches.at(".901").watching && notifications.selected.empty() && notifications.chats.received.empty());
         demo_step(placement, random);
         notifications.receive(board_message(placement, "8", false), 4);
         notifications.receive(board_message(placement, "8", true), 5);

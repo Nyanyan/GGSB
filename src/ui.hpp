@@ -29,6 +29,7 @@ public:
     std::vector<std::string> fields;
     std::map<std::string, ListScroll> list_scrolls;
     std::string dragging_list;
+    std::string dragging_slider;
     double list_drag_grab = 0;
     void scroll_list(const std::string& id, RectF area, RectF track, int count, int visible, int& offset, double speed = 3) {
         const int maximum = ListScroll::maximum(count, visible);
@@ -91,6 +92,28 @@ public:
         if (!blocked && r.mouseOver()) Cursor::RequestStyle(CursorStyle::Hand);
         if (!blocked && r.leftClicked()) { value = !value; return true; }
         return false;
+    }
+    bool slider(const std::string& id, RectF r, int& value) {
+        if (!blocked) fields.push_back(id);
+        const int previous = value;
+        if (!MouseL.pressed() || blocked) dragging_slider.clear();
+        if (!blocked && r.mouseOver()) {
+            Cursor::RequestStyle(CursorStyle::Hand);
+            if (MouseL.down()) { dragging_slider = id; focus = id; hit_field = true; }
+        }
+        const double left = r.x + 7, width = r.w - 14;
+        if (dragging_slider == id) { value = Clamp(int(std::lround(100 * (Cursor::PosF().x - left) / width)), 0, 100); hit_field = true; }
+        if (!blocked && focus == id) {
+            if (KeyLeft.down()) value = Max(0, value - 1);
+            if (KeyRight.down()) value = Min(100, value + 1);
+            if (KeyHome.down()) value = 0;
+            if (KeyEnd.down()) value = 100;
+        }
+        const double x = left + width * value / 100.0;
+        Line{left, r.center().y, left + width, r.center().y}.draw(2, line);
+        Line{left, r.center().y, x, r.center().y}.draw(2, mint);
+        RectF{x - 7, r.center().y - 11, 14, 22}.draw(focus == id || dragging_slider == id ? mint : text);
+        return value != previous;
     }
     bool input(const std::string& id, Field& state, RectF r, String placeholder = U"", bool secret = false, bool monospaced = false) {
         const auto& input_font = monospaced ? mono : font;

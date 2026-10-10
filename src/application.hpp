@@ -5,6 +5,7 @@
 #include "tracking.hpp"
 #include "accounts.hpp"
 #include "console.hpp"
+#include "sound_settings.hpp"
 
 namespace ggsb {
 using namespace s3d;
@@ -54,6 +55,8 @@ public:
     String confirmation_title, confirmation_description, toast;
     double toast_until = 0;
     Audio click_sound;
+    Audio chat_sound;
+    SoundSettings audio;
     FilePath last_export;
     PlayerRecords records, demo_records;
     ui::Field tracking_player;
@@ -72,6 +75,12 @@ public:
         username.value = settings.getOr<String>(U"connection.username", U"");
         legal_hints = settings.getOr<bool>(U"view.legal_hints", true);
         sound = settings.getOr<bool>(U"view.sound", true);
+        audio.set_volume(settings.getOr<int>(U"audio.volume", 100));
+        audio.chat_enabled = settings.getOr<bool>(U"audio.chat_enabled", false);
+        if (settings.hasSection(U"chat_sound")) for (const auto& entry : settings.getSection(U"chat_sound").keys) {
+            const auto key = entry.name.toUTF8();
+            if (SoundSettings::valid_key(key)) if (auto enabled = ParseOpt<bool>(entry.value)) audio.chats[key] = *enabled;
+        }
         animations = settings.getOr<bool>(U"view.animations", true);
         ui::language_pack().select(settings.getOr<String>(U"view.language", U"en"));
         if (accounts.load(account_error)) if (const auto* account = accounts.find(accounts.preferred())) select_account(account->id);
@@ -83,6 +92,14 @@ public:
             wave[i] = WaveSample{sample, sample};
         }
         click_sound = Audio{std::move(wave)};
+        Wave notification(12348, Arg::sampleRate = 44100);
+        for (size_t i = 0; i < notification.size(); ++i) {
+            const double t = i / 44100.0, note = t < 0.14 ? t : t - 0.14;
+            const double envelope = Min(1.0, note / 0.006) * Min(1.0, (0.14 - note) / 0.035);
+            const float sample = float(0.28 * envelope * std::sin(2 * Math::Pi * (t < 0.14 ? 880 : 1174.66) * note));
+            notification[i] = WaveSample{sample, sample};
+        }
+        chat_sound = Audio{std::move(notification)};
         TextReader stored{records_file};
         if (stored && !records.deserialize(stored.readAll().toUTF8())) {
             TextReader backup{records_file + U".bak"};
@@ -127,7 +144,22 @@ public:
         settings.write(U"connection", U"host", host.value); settings.write(U"connection", U"port", port.value);
         settings.write(U"view", U"legal_hints", legal_hints); settings.write(U"view", U"sound", sound); settings.write(U"view", U"animations", animations);
         settings.write(U"view", U"language", ui::language_pack().selected());
+        settings.write(U"audio", U"volume", audio.volume); settings.write(U"audio", U"chat_enabled", audio.chat_enabled);
+        for (const auto& [key, enabled] : audio.chats) settings.write(U"chat_sound", ui::str(key), enabled);
         if (!settings.save(U"settings.ini")) notify(ui::tr(U"設定を保存できませんでした"));
+    }
+    std::string sound_scope() const {
+        if (mode == Mode::Demo) return "demo";
+        if (mode == Mode::Record) return "record";
+        if (!connected_scope.empty()) return connected_scope;
+        return host.value.lowercased().toUTF8() + ":" + std::to_string(ParseOr<int>(port.value, 5000));
+    }
+    bool chat_sound_enabled(const std::string& target) const { return audio.chat_enabled_for(sound_scope(), target); }
+    void set_chat_sound(const std::string& target, bool enabled) { audio.set_chat(sound_scope(), target, enabled); save_settings(); }
+    bool chat_sound_due() const { return audio.chat_due(sound_scope(), model.chats.received); }
+    void draw_chat_sound_toggle(const std::string& target, RectF area) {
+        bool enabled = chat_sound_enabled(target);
+        if (p.toggle(area, ui::tr(audio.chat_enabled ? U"通知音" : U"通知音（設定でオフ）"), enabled)) set_chat_sound(target, enabled);
     }
     void set_language(const String& language, bool persist = true) {
         ui::language_pack().select(language);
@@ -228,7 +260,7 @@ public:
         return matches;
     }
     bool move_sound_due() {
-        if (!sound) return false;
+        if (!sound || audio.gain() == 0) return false;
         if (page == 0) return cursor() < 0 && model.moved_matches.count(model.selected);
         if (page == 5) {
             const auto matches = watched_matches();
@@ -318,8 +350,10 @@ public:
                 } else { int next = cursor() + 1; if (next > m->max_ply()) latest(); else cursors[m->id] = next; }
             }
         }
-        if (move_sound_due()) click_sound.playOneShot();
+        if (move_sound_due()) click_sound.playOneShot(audio.gain());
+        if (chat_sound_due()) chat_sound.playOneShot(audio.gain());
         model.moved_matches.clear();
+        model.chats.received.clear();
     }
     void export_record() {
         last_export.clear();
@@ -512,13 +546,35 @@ public:
         if (model.watches.count(".117") || model.matches.at(".117").watching) { result = U"FAIL: stopped watch reopened by delayed board"; return false; }
         watch(".117");
         if (!model.matches.at(".117").watching || model.selected != ".117") { result = U"FAIL: restart watching"; return false; }
+        const auto original_audio = audio;
+        audio.chat_enabled = true; audio.set_volume(37);
+        set_chat_sound("bob", false); set_chat_sound(".chat", false);
+        set_chat_sound(".tourney", true); set_chat_sound("/os", true);
+        set_chat_sound("match:.117", false);
+        audio.set_chat("other:5000", "bob", true); save_settings();
+        {
+            Application audio_reloaded;
+            if (audio_reloaded.audio.volume != 37 || !audio_reloaded.audio.chat_enabled || audio_reloaded.audio.chats != audio.chats) { result = U"FAIL: audio settings / conversation persistence after restart"; return false; }
+        }
+        model.chats.received.clear();
+        model.receive({"bob: muted conversation", {}}, now());
+        model.receive({".chat bob: muted channel", {}}, now());
+        if (chat_sound_due()) { result = U"FAIL: per-chat mute"; return false; }
+        model.chats.received.clear();
+        open_chat(".tourney"); model.receive({".tourney bob: incoming notification", {}}, now());
+        if (!chat_sound_due() || !chat_sound || chat_sound.samples() != 12348) { result = U"FAIL: incoming chat notification"; return false; }
+        audio.set_volume(0);
+        if (chat_sound_due() || move_sound_due()) { result = U"FAIL: zero audio volume"; return false; }
+        tick();
+        if (!model.chats.received.empty()) { result = U"FAIL: chat notification repeated across frames"; return false; }
+        audio = original_audio; save_settings();
         page = 4; set_language(U"ja");
         INI settings_after_login{U"settings.ini"};
         if (ui::tr(U"言語") != U"言語" || settings_after_login.getOr<String>(U"view.language", U"") != U"ja") { result = U"FAIL: settings language persistence"; return false; }
         set_language(U"en");
         cancel_connection();
         if (page != ConnectionPage || !modal.empty() || !model.matches.empty() || connection || mode != Mode::Offline) { result = U"FAIL: return to connection screen"; return false; }
-        result = U"PASS: startup connection screen, invalid login stays on connection screen, no demo, offline match controls, console selection/fonts, chat navigation/close/reopen/drafts/permanent channels, placement audio resource and visible-board triggers/mute, stop/restart watching with delayed updates, settings language persistence, GGF/CSV export, pair import, replay guard, graph limit/pass alignment/step/playback/live/right-edge drag/follow new moves, winner/shared graph axis, player journal, draw win rate/mean margin, automatic GGF, encrypted account save/select/reload/delete, return to connection screen";
+        result = U"PASS: startup connection screen, invalid login stays on connection screen, no demo, offline match controls, console selection/fonts, chat navigation/close/reopen/drafts/permanent channels, placement audio resource and visible-board triggers/mute, chat notification/per-conversation mute/zero volume/settings persistence after restart, stop/restart watching with delayed updates, settings language persistence, GGF/CSV export, pair import, replay guard, graph limit/pass alignment/step/playback/live/right-edge drag/follow new moves, winner/shared graph axis, player journal, draw win rate/mean margin, automatic GGF, encrypted account save/select/reload/delete, return to connection screen";
         start_demo(); toast.clear(); return true;
     }
     void draw();

@@ -25,6 +25,8 @@ void Main() {
     bool capture_pending = false;
     FilePath verification_path;
     FilePath audio_result;
+    String audio_kind = U"move";
+    bool audio_chat_muted = false, audio_chat_off = false;
     double audio_peak = 0;
     double audio_started = -1;
     int audio_frames = 0;
@@ -57,6 +59,10 @@ void Main() {
         }
         else if (args[i] == U"--verify-offline") verification_path = next();
         else if (args[i] == U"--verify-audio") audio_result = next();
+        else if (args[i] == U"--audio-kind") audio_kind = next();
+        else if (args[i] == U"--audio-volume") app.audio.set_volume(ParseOr<int>(next(), 100));
+        else if (args[i] == U"--audio-chat-muted") audio_chat_muted = true;
+        else if (args[i] == U"--audio-chat-off") audio_chat_off = true;
         else if (args[i] == U"--verify-session") { session_port = ParseOr<int>(next(), 0); const auto identity = next(); expected_registered = identity == U"registered"; expected_rejected = identity == U"rejected"; session_result = next(); }
         else if (args[i] == U"--session-screen") session_screen = next();
         else if (args[i] == U"--capture-at") capture_at = ParseOr<double>(next(), 2);
@@ -87,7 +93,7 @@ void Main() {
         else if (args[i] == U"--graph-board") app.graph_board = Clamp(ParseOr<int>(next(), -1), -1, 1);
         else if (args[i] == U"--single") app.choose_match(".119");
         else if (args[i] == U"--language") app.set_language(next(), false);
-        else if (args[i] == U"--mute") app.sound = false;
+        else if (args[i] == U"--mute") { app.sound = false; app.audio.chat_enabled = false; }
         else if (args[i] == U"--demo-accounts") { app.seed_account_preview(); app.show_connection(); }
     }
     if (!verification_path.empty()) {
@@ -97,7 +103,7 @@ void Main() {
     }
     if (!audio_result.empty()) {
         const int audio_page = app.page == 5 ? 5 : 0;
-        app.start_demo(); app.page = audio_page; app.sound = false;
+        app.start_demo(); app.page = audio_page; app.sound = false; app.audio.chat_enabled = false;
     }
     // GUI integration tests use a loopback server and synthetic credentials only.
     if (session_port > 0 && !session_result.empty()) {
@@ -111,11 +117,19 @@ void Main() {
     while (System::Update()) {
         if (!audio_result.empty() && ++audio_frames == 8) {
             // Warm up font and board rendering before sampling this short sound.
-            audio_started = Scene::Time(); app.sound = true;
-            auto placed = app.selected()->game[0];
-            std::mt19937 random{17}; ggsb::demo_step(placed, random);
-            app.model.receive(ggsb::board_message(placed, app.selected()->type, false), app.now());
-            audio_due = app.move_sound_due();
+            audio_started = Scene::Time();
+            if (audio_kind == U"chat") {
+                app.audio.chat_enabled = !audio_chat_off;
+                app.audio.set_chat(app.sound_scope(), "bob", !audio_chat_muted);
+                app.model.receive({"bob: audio notification fixture", {}}, app.now());
+                audio_due = app.chat_sound_due();
+            } else {
+                app.sound = true;
+                auto placed = app.selected()->game[0];
+                std::mt19937 random{17}; ggsb::demo_step(placed, random);
+                app.model.receive(ggsb::board_message(placed, app.selected()->type, false), app.now());
+                audio_due = app.move_sound_due();
+            }
         }
         app.tick();
         if (audio_started >= 0 && !audio_verified) {
@@ -123,7 +137,9 @@ void Main() {
             for (const float sample : GlobalAudio::GetSamples()) audio_peak = Max(audio_peak, double(Abs(sample)));
             if (Scene::Time() - audio_started > 0.35) {
                 TextWriter result{audio_result, TextEncoding::UTF8_NO_BOM};
-                result.writeln(String{audio_peak > 0.015 ? U"PASS: board update produced audible output samples" : U"FAIL: placement audio output is silent"} + U", peak=" + ToString(audio_peak, 4) + U", due=" + Format(audio_due) + U", voices=" + Format(audio_voices) + U", volume=" + Format(GlobalAudio::GetVolume()));
+                const bool expected_sound = app.audio.volume > 0 && (audio_kind != U"chat" || (!audio_chat_muted && !audio_chat_off));
+                const bool success = audio_due == expected_sound && (expected_sound ? audio_peak > 0.003 : audio_peak < 0.0001);
+                result.writeln(String{success ? U"PASS: audio output matches notification and volume settings" : U"FAIL: unexpected audio output"} + U", kind=" + audio_kind + U", peak=" + ToString(audio_peak, 4) + U", due=" + Format(audio_due) + U", voices=" + Format(audio_voices) + U", volume=" + Format(app.audio.volume));
                 audio_verified = true;
             }
         }

@@ -305,6 +305,11 @@
     "Unrated": "Unrated",
     "ONLINE PLAYERS": "ONLINE PLAYERS",
     "BOARD 1": "BOARD 1",
-    "サービス": "Service"
+    "サービス": "Service",
+    "通知音": "Sound",
+    "通知音（設定でオフ）": "Sound (off in Settings)",
+    "チャット受信時に音を鳴らす": "Play a sound for incoming chat",
+    "音量": "Volume",
+    "通知音を試す": "Test notification sound"
   }
 }
