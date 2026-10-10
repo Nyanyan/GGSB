@@ -22,7 +22,7 @@ Unregistered accounts can watch matches. The app does not show an error just bec
 
 Display settings and the last server address are saved in `App/settings.ini`. You can select an ID and password from the accounts saved on the connection screen.
 
-The default display language is English. Switch languages using **English** or **日本語** on the connection screen, or the language field in Settings. Your choice is remembered on the next launch. The language pack sources are `assets/languages/en.json` and `assets/languages/ja.json`; setup and build copy them to `App/languages/`. To change the wording, edit the values under `strings` while keeping the keys. Player names, chat messages and server responses are not translated.
+The default display language is English. Switch languages using **English** or **日本語** on the connection screen, or the language field in Settings after login. Your choice is remembered on the next launch. The language pack sources are `assets/languages/en.json` and `assets/languages/ja.json`; setup and build copy them to `App/languages/`. To change the wording, edit the values under `strings` while keeping the keys. Player names, chat messages and server responses are not translated.
 
 Lists of players, matches, requests, saved accounts, tracking sessions, statistics, moves and chat messages have scrollbars. Use the mouse wheel over a list, drag its scrollbar, or click an empty part of the scrollbar track to move through it.
 
@@ -45,12 +45,13 @@ If a file cannot be decrypted, the app leaves it untouched and shows an error. Y
 ### Playing and watching
 
 - Click a legal square on your turn to send the move to GGS. The app waits for the server's response after sending it, preventing duplicate submissions.
+- With placement sound enabled in Settings, a short sound plays when a disc is placed on a board shown in the match or multiple-match view. Passes and duplicate board updates do not play the sound.
 - **Pass** appears below the board when a pass is required.
 - Use the controls at the top to request an abort, resign or propose a score. Regular matches also support undo requests. The undo button is disabled for synchro matches because GGS does not support them.
 - Synchro matches show two boards side by side, with disc counts, remaining time and whose turn it is on each board. While the two games have different move counts, the clock on the board that is ahead stops.
 - After a match finishes, its overall winner appears at the top, in the lobby and in the multiple-match list. Matches without an official result, such as aborted matches, show **No result**.
-- Switch between watched matches from the left sidebar. If the connection drops, the app reconnects automatically and resumes watching.
-- **Multiple matches** displays up to four matches per page. Each synchro match shows two boards and a combined evaluation graph. Add watched matches from the lobby; use the pages to view five or more matches. **Details** opens the main match view.
+- Switch between watched matches from the left sidebar. Use the **×** beside a watched match to stop watching it there. If the connection drops, the app reconnects automatically and resumes the matches you are still watching.
+- **Multiple matches** displays up to four matches per page. Each synchro match shows two boards and a combined evaluation graph. Add watched matches from the lobby; use the pages to view five or more matches. Click anywhere in a match's area to open its main view. **Stop watching** in each area removes that match without opening it. You cannot stop watching your own ongoing match.
 - **Players** shows ratings for standard starts (`8`) and random starts (`8r`) side by side. Both ratings also appear near the IDs in the match view; values that have not arrived show “—”. **Profile** sends `finger` to GGS itself, while **Statistics** sends `finger` to `/os`; the results appear in the console. You can also check whether a player is accepting challenges and send a challenge.
 
 ![Watching multiple matches](docs/multi.png)
@@ -102,6 +103,8 @@ GGF files contain the starting position, moves, player names, received evaluatio
 ### Chat and console
 
 Click **Chat** in **Players** to open a private conversation with that player. Enter a message and press Enter or click **Send**. The recipient's ID appears under **Chat** in the left sidebar; click an ID to switch conversations. Incoming private messages also add the sender automatically and show an unread count. Drafts and scroll positions are preserved when switching recipients. Scroll the sidebar list when there are many conversations.
+
+Use **×** in the sidebar or **Close** in the conversation to close a private or service chat. Its history and draft remain available during the current connection when you reopen it from Players. A new private message reopens the sender's tab; routine service updates do not reopen a closed service tab. The `.chat` and `.tourney` channels stay in the sidebar, and **Close** returns from their conversation view to the lobby.
 
 The public `.chat` channel is always in the left sidebar, and the app joins it automatically on login. Click it to open the public chat history and input field. Private conversations and public chat have separate histories and recipients. Long messages wrap to the available width, and the output supports text selection, copying and scrolling.
 
@@ -171,6 +174,8 @@ Network tests use a mock server at 127.0.0.1 to verify registered and unregister
 
 GUI tests copy only the executable and runtime files into a dedicated folder under `build/`. They do not load your usual `App/settings.ini`, saved accounts or game records, and they check afterward that your connection settings have not changed.
 
+The GUI smoke test also verifies closing and reopening chats, retaining drafts, stopping and restarting watching, and ignoring delayed updates to stopped watches. Audio checks measure output samples after a placement in both the match and multiple-match views.
+
 With Python 3, run `python tests/gui_session_smoke.py` to check registered and unregistered login in the actual app. This test connects only to a local mock server and verifies the lobby after login, both ratings, the destinations of profile and game-statistics queries, private and public chat sending and receiving, visibility of playing controls, and the absence of playing-setting commands for unregistered accounts.
 
 Run `python tests/privacy_tests.py --history --git-objects --package build/GGSB-windows-x64.zip` to check published files, every branch's history, recovery refs, unreachable Git objects and the distribution ZIP for absolute paths or private network addresses. Detected values are not printed. Add `--forbid-file filename` to check that a file is absent from history and the ZIP as well.
@@ -231,7 +236,7 @@ Siv3D 0.6.16で作った、GGS（Generic Game Server）用のオセロGUIです�
 
 表示設定と前回の接続先は `App/settings.ini` に保存します。IDとパスワードは、接続画面で保存したアカウントから選べます。
 
-表示言語の既定は英語です。接続画面の「English」「日本語」、または設定画面の言語欄で切り替えられます。選択した言語は次回の起動にも引き継ぎます。言語パックのソースは `assets/languages/en.json` と `assets/languages/ja.json` です。セットアップとビルド時に `App/languages/` へコピーします。`strings` 内のキーを維持して値を編集すると、表示文言を変更できます。プレイヤー名・チャット本文・サーバーの応答は翻訳しません。
+表示言語の既定は英語です。接続画面の「English」「日本語」、またはログイン後の設定画面の言語欄で切り替えられます。選択した言語は次回の起動にも引き継ぎます。言語パックのソースは `assets/languages/en.json` と `assets/languages/ja.json` です。セットアップとビルド時に `App/languages/` へコピーします。`strings` 内のキーを維持して値を編集すると、表示文言を変更できます。プレイヤー名・チャット本文・サーバーの応答は翻訳しません。
 
 プレイヤー、対局・募集、保存アカウント、記録区間・成績、棋譜の手順、チャットなどの一覧にはスクロールバーがあります。一覧上のホイール、バーのドラッグ、バーの空いている部分のクリックで移動できます。
 
@@ -254,12 +259,13 @@ Siv3D 0.6.16で作った、GGS（Generic Game Server）用のオセロGUIです�
 ### 対局と観戦
 
 - 自分の手番で合法なマスをクリックすると、その着手をGGSに送ります。送信後はサーバーの応答を待ち、同じ着手の重複送信を防ぎます。
+- 設定画面で「石を置く音」をオンにすると、対局画面や複数対局画面に表示中の盤に石が置かれたとき、短い音を鳴らします。パスや重複した盤面通知では鳴らしません。
 - パスが必要な局面では盤の下に「パス」が表示されます。
 - 画面上部から中断の申込・投了・スコアの提案を操作できます。通常戦では待ったの申込も使えます。シンクロ戦の待ったはGGS側が対応していないため、ボタンを無効にしています。
 - シンクロ戦では2面を並べ、各盤の石数・持ち時間・手番を表示します。2局の手数がずれている間は、先行した盤の時計を止めます。
 - 終局後は画面上部に対戦全体の勝者を表示し、ロビーと複数対局の一覧でも勝者を確認できます。中断など公式結果がない対局は「結果なし」と表示します。
-- 観戦中の対局は左側から切り替えられます。接続が切れると自動で再接続し、観戦を再開します。
-- 「複数対局」では、1ページに4対戦まで同時表示できます。シンクロ戦はそれぞれ2面と合算グラフを表示します。観戦する対局はロビーから追加でき、5対戦以上はページを切り替えて確認できます。「詳細」で通常の対局画面を開きます。
+- 観戦中の対局は左側から切り替えられます。各対局の横の「×」で、その場で観戦を終了できます。接続が切れると自動で再接続し、観戦を続けている対局を再開します。
+- 「複数対局」では、1ページに4対戦まで同時表示できます。シンクロ戦はそれぞれ2面と合算グラフを表示します。観戦する対局はロビーから追加でき、5対戦以上はページを切り替えて確認できます。対局エリア内をクリックすると、その対局画面を開きます。各エリアの「観戦を終了」では、対局画面を開かずに観戦を終了できます。自分の対局が進行中の場合、観戦は終了できません。
 - 「プレイヤー」画面では通常開始の `8` とランダム開始の `8r` のレーティングを並べて表示します。対局画面のID付近にも2種類を表示し、未受信の値は「—」になります。「プロフィール」はGGS本体へ `finger` を送り、「対局成績」は `/os` へ `finger` を送って、コンソールに結果を表示します。対局受付状態の確認や対局申込もできます。
 
 ![複数対局の観戦画面](docs/multi.png)
@@ -311,6 +317,8 @@ GGFには開始局面・着手・選手名・受信した評価値・結果を�
 ### チャットとコンソール
 
 「プレイヤー」画面の「チャット」を押すと、その人への個人チャットを開きます。メッセージを入力してEnterまたは「送信」で送れます。左側の「チャット」に相手のIDが追加され、クリックして会話を切り替えられます。個人チャットを受信した場合も相手を自動で追加し、未読件数を表示します。相手を切り替えても下書きと表示位置を保持します。相手が多いときは左側の一覧をスクロールしてください。
+
+個人チャットやサービスのチャットは、左側の「×」か会話画面の「閉じる」で閉じられます。接続中は履歴と下書きを保持し、プレイヤー画面から開き直せます。新しい個人メッセージを受信すると相手のタブが再び開きますが、サービスの通常の更新通知では閉じたタブを開き直しません。`.chat` と `.tourney` は左側に残り、その会話画面で「閉じる」を押すとロビーへ戻ります。
 
 全体チャットの `.chat` は左側に常設し、ログイン時に自動で参加します。クリックすると全体チャットの履歴と入力欄が開きます。個人チャットと全体チャットは、履歴も送信先も分けています。長いメッセージは画面幅で折り返し、出力の文字選択・コピー・スクロールも使えます。
 
@@ -379,6 +387,8 @@ MinGWの `g++` がある環境で実行できます。
 通信テストは127.0.0.1の模擬サーバーを使い、登録済み・未登録のログイン、登録状態の判定、通常・ランダムのレーティングの受信、チャンネル参加、分割受信・切断・再接続・認証失敗・パスワードの伏せ字・終了処理を検証します。GUIテストは実際のSiv3Dアプリで、起動時の接続画面・デモの停止・未接続時の対戦操作の制限・言語の切り替えと保存・コンソールの範囲選択・フォントの読込、棋譜の書き出し・2局の読み込み・再生時の着手禁止・終局通知からの自動棋譜保存と集計の復元に加え、アカウントの保存・選択・再読み込み・削除を確認します。`python tests/language_tests.py` で両言語パックのキーと翻訳の不足を確認できます。
 
 GUIテストは実行ファイルとランタイムだけを `build/` 内の専用フォルダーへコピーして実行します。普段使う `App/settings.ini`、保存済みアカウント、対局記録をテストに読み込まず、実行後にも接続設定が変わっていないことを確認します。
+
+GUIの動作確認では、チャットを閉じて開き直す操作、下書きの保持、観戦の終了と再開も検証します。観戦終了後に遅れて届いた盤面通知で観戦が再開しないことも確認します。音の検証では、対局画面と複数対局画面のそれぞれで着手後の出力波形を測定します。
 
 Python 3が使える環境では、`python tests/gui_session_smoke.py` で登録済み・未登録のログインを実際のアプリで確認できます。このテストではローカルの模擬サーバーだけに接続し、ログイン後のロビー表示、2種類のレーティング、プロフィールと対局成績の問い合わせ先、個人チャット・全体チャットの送受信、対戦操作の表示可否、未登録時に対戦設定コマンドを送らないことを検証します。
 
