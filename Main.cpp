@@ -24,6 +24,13 @@ void Main() {
     bool captured = false;
     bool capture_pending = false;
     FilePath verification_path;
+    FilePath audio_result;
+    double audio_peak = 0;
+    double audio_started = -1;
+    int audio_frames = 0;
+    size_t audio_voices = 0;
+    bool audio_due = false;
+    bool audio_verified = false;
     FilePath session_result;
     int session_port = 0;
     bool expected_registered = false, expected_rejected = false, session_verified = false, chat_verified = false;
@@ -49,6 +56,7 @@ void Main() {
             app.move_follow_tail = false;
         }
         else if (args[i] == U"--verify-offline") verification_path = next();
+        else if (args[i] == U"--verify-audio") audio_result = next();
         else if (args[i] == U"--verify-session") { session_port = ParseOr<int>(next(), 0); const auto identity = next(); expected_registered = identity == U"registered"; expected_rejected = identity == U"rejected"; session_result = next(); }
         else if (args[i] == U"--session-screen") session_screen = next();
         else if (args[i] == U"--capture-at") capture_at = ParseOr<double>(next(), 2);
@@ -87,6 +95,10 @@ void Main() {
         TextWriter writer{verification_path, TextEncoding::UTF8_NO_BOM}; writer.writeln(result);
         if (!success) return;
     }
+    if (!audio_result.empty()) {
+        const int audio_page = app.page == 5 ? 5 : 0;
+        app.start_demo(); app.page = audio_page; app.sound = false;
+    }
     // GUI integration tests use a loopback server and synthetic credentials only.
     if (session_port > 0 && !session_result.empty()) {
         app.accounts = ggsb::AccountVault{std::filesystem::path(L"records/gui_smoke/login-fixture-accounts.dat")};
@@ -97,7 +109,24 @@ void Main() {
         app.connection->start();
     }
     while (System::Update()) {
+        if (!audio_result.empty() && ++audio_frames == 8) {
+            // Warm up font and board rendering before sampling this short sound.
+            audio_started = Scene::Time(); app.sound = true;
+            auto placed = app.selected()->game[0];
+            std::mt19937 random{17}; ggsb::demo_step(placed, random);
+            app.model.receive(ggsb::board_message(placed, app.selected()->type, false), app.now());
+            audio_due = app.move_sound_due();
+        }
         app.tick();
+        if (audio_started >= 0 && !audio_verified) {
+            audio_voices = Max(audio_voices, GlobalAudio::GetActiveVoiceCount());
+            for (const float sample : GlobalAudio::GetSamples()) audio_peak = Max(audio_peak, double(Abs(sample)));
+            if (Scene::Time() - audio_started > 0.35) {
+                TextWriter result{audio_result, TextEncoding::UTF8_NO_BOM};
+                result.writeln(String{audio_peak > 0.015 ? U"PASS: board update produced audible output samples" : U"FAIL: placement audio output is silent"} + U", peak=" + ToString(audio_peak, 4) + U", due=" + Format(audio_due) + U", voices=" + Format(audio_voices) + U", volume=" + Format(GlobalAudio::GetVolume()));
+                audio_verified = true;
+            }
+        }
         if (!session_result.empty() && !session_verified && app.epoch == 0 && app.page != ggsb::Application::ConnectionPage) {
             TextWriter result{session_result}; result.writeln(U"FAIL: connection screen closed before login"); return;
         }
@@ -113,12 +142,26 @@ void Main() {
             const auto* bob = app.model.find_user("bob");
             if (bob->rating != 2300.0 || bob->random_rating != 2100.2) { TextWriter result{session_result}; result.writeln(U"FAIL: two rating types"); return; }
             if (app.model.chats.threads.contains("password")) { TextWriter result{session_result}; result.writeln(U"FAIL: login prompt became a chat tab"); return; }
+            if (success && session_screen == U"settings") {
+                app.page = 4;
+                const String language = ggsb::ui::language_pack().selected();
+                const String alternate = language == U"en" ? U"ja" : U"en";
+                app.set_language(alternate);
+                const INI changed{U"settings.ini"};
+                const bool persisted = changed.getOr<String>(U"view.language", U"") == alternate;
+                app.set_language(language);
+                const INI restored{U"settings.ini"};
+                if (!persisted || restored.getOr<String>(U"view.language", U"") != language) {
+                    TextWriter result{session_result}; result.writeln(U"FAIL: settings language persistence after login"); return;
+                }
+            }
             TextWriter result{session_result, TextEncoding::UTF8_NO_BOM};
             const bool chat_test = chat_screen();
-            result.writeln(success ? chat_test ? U"PENDING: chat round trip" : U"PASS: login opens lobby, identity, match controls, quiet registration, normal/random ratings" : U"FAIL: login lobby / identity / match controls / registration toast");
+            result.writeln(success ? chat_test ? U"PENDING: chat round trip" : session_screen == U"settings" ? U"PASS: login opens lobby, settings language switch and persistence after login" : U"PASS: login opens lobby, identity, match controls, quiet registration, normal/random ratings" : U"FAIL: login lobby / identity / match controls / registration toast");
             if (!success) return;
             session_verified = true;
             if (session_screen == U"players") app.page = 2;
+            else if (session_screen == U"settings") app.page = 4;
             else if (session_screen == U"profile") app.show_player_info("bob");
             else if (session_screen == U"stats") app.show_player_info("bob", true);
             else if (session_screen == U"requests") { app.page = 1; app.lobby_tab = 1; }
@@ -154,6 +197,6 @@ void Main() {
         if (!capture.isEmpty() && !captured && Scene::Time() >= capture_at) {
             ScreenCapture::RequestCurrentFrame(); capture_pending = true; captured = true;
         }
-        if (quit_after >= 0 && Scene::Time() >= quit_after) break;
+        if (quit_after >= 0 && Scene::Time() >= quit_after && (audio_result.empty() || audio_verified)) break;
     }
 }

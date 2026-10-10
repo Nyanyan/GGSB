@@ -92,9 +92,9 @@ inline void Application::tick_records() {
         for (const auto& player : players) send("t /os history " + player);
         last_history_refresh = now();
     }
-    for (auto& [id, match] : model.matches) if (!match.finished && match.listed && !model.watches.count(id)
+    for (auto& [id, match] : model.matches) if (!match.finished && match.listed && !model.watches.count(id) && !model.stopped_watches.count(id)
         && (players.count(match.player[0]) || players.count(match.player[1]))) {
-        if (send("t /os watch + " + id)) { model.watches.insert(id); match.watch_ms = now(); }
+        if (send("t /os watch + " + id)) model.begin_watching(id, now());
     }
     bool saved = false;
     for (const auto& [id, key] : closed_keys) {

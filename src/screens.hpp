@@ -13,48 +13,54 @@ inline void Application::draw_shell() {
     RectF{0, 0, 230, 976}.draw(panel);
     Line{230, 0, 230, 976}.draw(1, line);
     p.label(U"GGSB", 28, 24, 24, text, true);
-    const String nav[] = {ui::tr(U"対局・観戦"), ui::tr(U"複数対局"), ui::tr(U"ロビー"), ui::tr(U"プレイヤー"), ui::tr(U"記録・相手別成績"), ui::tr(U"コンソール"), ui::tr(U"接続・設定")};
-    const int nav_pages[] = {0, 5, 1, 2, 6, 3, 4};
+    const String nav[] = {ui::tr(U"ロビー"), ui::tr(U"対局・観戦"), ui::tr(U"複数対局"), ui::tr(U"プレイヤー"), ui::tr(U"記録・相手別成績"), ui::tr(U"コンソール"), ui::tr(U"接続・設定")};
+    const int nav_pages[] = {1, 0, 5, 2, 6, 3, 4};
     for (int n = 0; n < 7; ++n) {
         const int i = nav_pages[n];
-        RectF row{12, 118 + n * 43.0, 204, 38};
+        RectF row{12, 76 + n * 40.0, 204, 38};
         if (page == i) RectF{12, row.y + 11, 3, 20}.draw(mint);
         p.label(nav[n], 16, 40, row.y + 7, page == i ? mint : text, page == i);
         if (!p.blocked && row.mouseOver()) Cursor::RequestStyle(CursorStyle::Hand);
         if (!p.blocked && p.dragging_list.empty() && row.leftClicked()) { page = i; list_offset = 0; }
     }
-    Line{24, 437, 206, 437}.draw(1, line);
-    p.label(ui::tr(U"チャット"), 12, 24, 458, muted, true);
+    Line{24, 370, 206, 370}.draw(1, line);
+    p.label(ui::tr(U"チャット"), 12, 24, 386, muted, true);
     auto chat_tab = [&](const std::string& target, double y, bool global = false) {
         const bool active = page == ChatPage && model.chats.selected == target;
         const RectF row{12, y, 192, 34};
         if (active) RectF{12, y + 7, 3, 20}.draw(mint);
-        p.clipped(str(target), 15, {24, y + 6, global ? 57.0 : 143.0, 23}, active ? mint : text, active);
+        const bool closable = target != ".chat" && target != ".tourney";
+        p.clipped(str(target), 15, {24, y + 6, global ? 57.0 : closable ? 122.0 : 143.0, 23}, active ? mint : text, active);
         if (global) p.label(ui::tr(U"全体"), 12, 84, y + 8, muted);
         const auto& thread = model.chats.threads.at(target);
-        if (thread.unread) p.mono(Format(thread.unread)).draw(11, Arg::topRight = Vec2{200, y + 8}, mint);
+        if (thread.unread) p.mono(Format(thread.unread)).draw(11, Arg::topRight = Vec2{closable ? 173.0 : 200.0, y + 8}, mint);
+        const bool closed = closable && p.button({180, y + 5, 25, 24}, U"×");
+        if (closed) { close_chat(target); return; }
         if (!p.blocked && row.mouseOver()) Cursor::RequestStyle(CursorStyle::Hand);
         if (!p.blocked && p.dragging_list.empty() && row.leftClicked()) open_chat(target);
     };
-    chat_tab(".chat", 483, true);
-    chat_tab(".tourney", 521);
+    chat_tab(".chat", 412, true);
+    chat_tab(".tourney", 450);
     const int private_count = int(model.chats.order.size()) - 2;
-    p.scroll_list("chat-tabs", {12, 563, 192, 114}, {210, 563, 8, 114}, private_count, 3, chat_tabs_offset);
-    for (int n = 0; n < 3 && chat_tabs_offset + n < private_count; ++n) chat_tab(model.chats.order[2 + chat_tabs_offset + n], 563 + n * 38);
+    p.scroll_list("chat-tabs", {12, 488, 192, 190}, {210, 488, 8, 190}, private_count, PrivateChatVisible, chat_tabs_offset);
+    const std::vector<std::string> private_chats(model.chats.order.begin() + 2, model.chats.order.end());
+    for (int n = 0; n < PrivateChatVisible && chat_tabs_offset + n < private_count; ++n) chat_tab(private_chats[chat_tabs_offset + n], 488 + n * 38);
     Line{24, 697, 206, 697}.draw(1, line);
     p.label(ui::tr(U"観戦中"), 12, 24, 716, muted, true);
     if (p.button({144, 709, 62, 27}, ui::tr(U"一覧"))) page = 5;
     std::vector<std::string> watched;
-    for (const auto& [id, m] : model.matches) if (m.watching) watched.push_back(id);
+    for (const auto& [id, m] : model.matches) if (m.watching || model.watches.count(id)) watched.push_back(id);
     p.scroll_list("watched", {12, 746, 192, 192}, {210, 746, 8, 192}, int(watched.size()), 4, watched_offset);
     for (int n = 0; n < 4 && watched_offset + n < int(watched.size()); ++n) {
         const auto& id = watched[watched_offset + n]; auto& m = model.matches.at(id);
         const double y = 746 + n * 48;
         RectF r{12, y, 192, 44};
         if (id == model.selected) RectF{12, r.y + 4, 3, 36}.draw(mint);
-        p.clipped(str(m.player[0]) + U" / " + str(m.player[1]), 13, {24, y + 3, 172, 23}, id == model.selected ? text : muted, true);
+        p.clipped(str(m.player[0]) + U" / " + str(m.player[1]), 13, {24, y + 3, 143, 23}, id == model.selected ? text : muted, true);
         p.label(m.games() == 2 ? U"SYNC" : U"8×8", 9, 24, y + 26, m.games() == 2 ? mint : blue);
         p.label(str(id), 10, 77, y + 26, muted);
+        const bool stopped = model.can_stop_watching(id) && p.button({180, y + 9, 25, 26}, U"×");
+        if (stopped) { stop_watching(id); continue; }
         if (!p.blocked && p.dragging_list.empty() && r.leftClicked()) { choose_match(id); page = 0; }
     }
     if (watched.empty()) p.label(ui::tr(U"なし"), 13, 24, 753, muted);
@@ -250,9 +256,7 @@ inline void Application::draw_arena() {
         if (p.button({684, 126, 73, 29}, ui::tr(U"投了"), false, true, red)) ask_confirmation(ui::tr(U"選択中の盤を投了する"), ui::tr(U"投了をGGSに送信します。この操作は取り消せません。"), "t /os resign " + game_id);
         if (p.button({765, 126, 73, 29}, ui::tr(U"スコア"))) { modal = "score"; p.focus = "score"; }
     }
-    if (p.button({846, 126, 99, 29}, ui::tr(U"観戦を終了"), false, online() && !own)) {
-        if (send("t /os watch - " + m->id)) { model.watches.erase(m->id); m->watching = false; model.selected.clear(); }
-    }
+    if (model.can_stop_watching(m->id) && p.button({846, 126, 99, 29}, ui::tr(U"観戦を終了"))) { stop_watching(m->id); return; }
     p.tag(m->games() == 2 ? ui::tr(U"SYNCHRO / 2 BOARDS") : ui::tr(U"OTHELLO / 8×8"), {1050, 130}, m->games() == 2 ? mint : blue);
     p.card({332, 166, 942, 68});
     const auto winner = m->winner();
@@ -375,18 +379,17 @@ inline void Application::draw_settings() {
     p.label(Format(accounts.accounts().size()) + ui::tr(U"件のアカウントをローカル保存"), 14, 360, 599, mint);
     p.label(ui::tr(U"IDとパスワードはWindows DPAPIで暗号化します。"), 13, 360, 635, muted);
     p.clipped(connection ? connection_status(connection->status()) : ui::tr(U"未接続"), 13, {360, 703, 544, 32}, online() ? mint : muted);
-    p.card({958, 143, 616, may_match() ? 431.0 : 297.0}); p.label(ui::tr(U"表示・対局設定"), 23, 985, 166, text, true);
-    if (p.toggle({985, 225, 561, 44}, ui::tr(U"合法手のヒントを表示"), legal_hints)) save_settings();
-    if (p.toggle({985, 292, 561, 44}, ui::tr(U"石を置く音"), sound)) save_settings();
-    if (p.toggle({985, 359, 561, 44}, ui::tr(U"石が返るアニメーション"), animations)) save_settings();
+    p.card({958, 143, 616, 650}); p.label(ui::tr(U"表示・対局設定"), 23, 985, 166, text, true);
+    p.label(ui::tr(U"言語"), 18, 985, 225, text, true);
+    draw_language_picker({985, 262, 561, 40});
+    if (p.toggle({985, 335, 561, 44}, ui::tr(U"合法手のヒントを表示"), legal_hints)) save_settings();
+    if (p.toggle({985, 392, 561, 44}, ui::tr(U"石を置く音"), sound)) save_settings();
+    if (p.toggle({985, 449, 561, 44}, ui::tr(U"石が返るアニメーション"), animations)) save_settings();
     if (may_match()) {
-        if (p.toggle({985, 426, 561, 44}, ui::tr(U"対局申込を受け付ける"), open_for_matches)) send(std::string("t /os open ") + (open_for_matches ? "1" : "0"));
-        if (p.toggle({985, 493, 561, 44}, ui::tr(U"レーティング対局"), rated)) send(std::string("t /os rated ") + (rated ? "+" : "-"));
+        if (p.toggle({985, 506, 561, 44}, ui::tr(U"対局申込を受け付ける"), open_for_matches)) send(std::string("t /os open ") + (open_for_matches ? "1" : "0"));
+        if (p.toggle({985, 563, 561, 44}, ui::tr(U"レーティング対局"), rated)) send(std::string("t /os rated ") + (rated ? "+" : "-"));
     }
-    const double language_y = may_match() ? 596 : 462;
-    p.label(ui::tr(U"言語"), 20, 985, language_y + 16, text, true);
-    draw_language_picker({985, language_y + 61, 561, 40});
-    if (p.button({985, language_y + 133, 561, 44}, ui::tr(U"棋譜を開く"))) open_record();
+    if (p.button({985, may_match() ? 650.0 : 526.0, 561, 44}, ui::tr(U"棋譜を開く"))) open_record();
 
 }
 

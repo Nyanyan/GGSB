@@ -17,6 +17,7 @@ public:
     enum class Mode { Offline, Demo, Live, Record };
     static constexpr int ConnectionPage = 7;
     static constexpr int ChatPage = 8;
+    static constexpr int PrivateChatVisible = 5;
     Mode mode = Mode::Offline;
     int page = ConnectionPage, lobby_tab = 0, list_offset = 0, move_offset = 0, active_board = 0, chat_offset = 0, graph_board = -1;
     ConsoleBuffer console_view;
@@ -38,7 +39,7 @@ public:
     bool graph_dragging = false;
     bool playback = false, legal_hints = true, sound = true, animations = true, flip_board = false;
     bool open_for_matches = true, rated = true, save_login = false;
-    uint64_t last_playback = 0, last_refresh = 0, last_move_event = 0;
+    uint64_t last_playback = 0, last_refresh = 0;
     int epoch = 0;
     std::string connected_scope;
     ui::Field host{U"skatgame.net"}, port{U"5000"}, username, password, filter, command, chat_input;
@@ -74,10 +75,11 @@ public:
         animations = settings.getOr<bool>(U"view.animations", true);
         ui::language_pack().select(settings.getOr<String>(U"view.language", U"en"));
         if (accounts.load(account_error)) if (const auto* account = accounts.find(accounts.preferred())) select_account(account->id);
-        Wave wave(2205, Arg::sampleRate = 44100);
+        Wave wave(4410, Arg::sampleRate = 44100);
         for (size_t i = 0; i < wave.size(); ++i) {
             double t = i / 44100.0;
-            float sample = float(0.12 * std::exp(-t * 105) * std::sin(2 * Math::Pi * (640 - t * 3000) * t));
+            const double attack = Min(1.0, t / 0.001);
+            float sample = float(0.55 * attack * std::exp(-t * 48) * (0.72 * std::sin(2 * Math::Pi * 760 * t) + 0.28 * std::sin(2 * Math::Pi * 1470 * t)));
             wave[i] = WaveSample{sample, sample};
         }
         click_sound = Audio{std::move(wave)};
@@ -185,8 +187,14 @@ public:
         if (it != model.chats.order.end() && it >= model.chats.order.begin() + 2) {
             int idx = int(it - model.chats.order.begin()) - 2;
             if (idx < chat_tabs_offset) chat_tabs_offset = idx;
-            else if (idx >= chat_tabs_offset + 3) chat_tabs_offset = idx - 2;
+            else if (idx >= chat_tabs_offset + PrivateChatVisible) chat_tabs_offset = idx - PrivateChatVisible + 1;
         }
+    }
+    void close_chat(const std::string& target) {
+        const bool active = page == ChatPage && model.chats.selected == target;
+        model.chats.close(target);
+        chat_tabs_offset = Clamp(chat_tabs_offset, 0, ListScroll::maximum(int(model.chats.order.size()) - 2, PrivateChatVisible));
+        if (active) { page = 1; p.focus.clear(); console_drag_vertical = console_drag_horizontal = false; }
     }
     void submit_conversation() {
         const auto target = model.chats.selected;
@@ -201,8 +209,34 @@ public:
     }
     void watch(const std::string& id) {
         model.selected = id; cursors[id] = -1; graph_cursors.erase(id); active_board = 0; graph_board = -1; move_offset = 0; move_follow_tail = true; page = 0;
-        if (mode == Mode::Demo) return;
-        if (send("t /os watch + " + id)) { model.watches.insert(id); model.ensure(id).watch_ms = now(); }
+        if (mode == Mode::Demo) { model.begin_watching(id, now()); return; }
+        if (send("t /os watch + " + id)) model.begin_watching(id, now());
+    }
+    bool stop_watching(const std::string& id) {
+        if (!model.can_stop_watching(id)) return false;
+        if (online() && !send("t /os watch - " + id)) return false;
+        const bool active = model.selected == id;
+        if (!model.stop_watching(id)) return false;
+        cursors.erase(id); graph_cursors.erase(id);
+        if (active) { playback = graph_dragging = false; active_board = 0; move_offset = 0; move_follow_tail = true; }
+        return true;
+    }
+    std::vector<Match*> watched_matches() {
+        std::vector<Match*> matches;
+        for (auto& [id, m] : model.matches) if (m.watching || model.watches.count(id)) matches.push_back(&m);
+        std::stable_sort(matches.begin(), matches.end(), [](const auto* a, const auto* b) { return a->finished < b->finished; });
+        return matches;
+    }
+    bool move_sound_due() {
+        if (!sound) return false;
+        if (page == 0) return cursor() < 0 && model.moved_matches.count(model.selected);
+        if (page == 5) {
+            const auto matches = watched_matches();
+            const int first = Clamp(mosaic_offset / 4, 0, ListScroll::maximum((int(matches.size()) + 3) / 4, 1)) * 4;
+            for (int slot = first; slot < Min(first + 4, int(matches.size())); ++slot)
+                if (model.moved_matches.count(matches[slot]->id)) return true;
+        }
+        return false;
     }
     void choose_match(const std::string& id) { model.selected = id; active_board = 0; graph_board = -1; move_offset = 0; move_follow_tail = true; playback = false; }
     void seek(int ply) {
@@ -284,7 +318,8 @@ public:
                 } else { int next = cursor() + 1; if (next > m->max_ply()) latest(); else cursors[m->id] = next; }
             }
         }
-        if (model.move_events != last_move_event) { if (sound && page == 0) click_sound.playOneShot(); last_move_event = model.move_events; }
+        if (move_sound_due()) click_sound.playOneShot();
+        model.moved_matches.clear();
     }
     void export_record() {
         last_export.clear();
@@ -453,9 +488,37 @@ public:
         open_chat("carol"); chat_drafts["carol"].value = U"別の下書き";
         open_chat(".chat");
         if (model.chats.selected != ".chat" || chat_drafts["bob"].value != U"下書き" || chat_drafts["carol"].value != U"別の下書き" || !chat_drafts[".chat"].value.empty()) { result = U"FAIL: chat switching / separate drafts"; return false; }
+        open_chat("bob"); close_chat("bob");
+        if (page != 1 || model.chats.is_open("bob") || chat_drafts["bob"].value != U"下書き") { result = U"FAIL: close chat / preserve draft"; return false; }
+        open_chat("bob");
+        if (chat_drafts["bob"].value != U"下書き") { result = U"FAIL: reopen chat draft"; return false; }
+        open_chat(".chat"); close_chat(".chat");
+        if (page != 1 || !model.chats.is_open(".chat") || !model.chats.is_open(".tourney")) { result = U"FAIL: permanent channels"; return false; }
+        start_demo(); sound = true;
+        if (!click_sound || click_sound.samples() != 4410) { result = U"FAIL: placement audio resource"; return false; }
+        model.moved_matches = {model.selected};
+        if (!move_sound_due()) { result = U"FAIL: placement audio in match"; return false; }
+        seek(1);
+        if (move_sound_due()) { result = U"FAIL: live audio during review"; return false; }
+        latest(); page = 5;
+        if (!move_sound_due()) { result = U"FAIL: placement audio in mosaic"; return false; }
+        page = 1;
+        if (move_sound_due()) { result = U"FAIL: audio for hidden boards"; return false; }
+        page = 5; sound = false;
+        if (move_sound_due()) { result = U"FAIL: sound disabled"; return false; }
+        choose_match(".117");
+        if (!stop_watching(".117") || model.matches.at(".117").watching || !model.selected.empty()) { result = U"FAIL: stop watching active match"; return false; }
+        demo.tick(model, now() + 1700);
+        if (model.watches.count(".117") || model.matches.at(".117").watching) { result = U"FAIL: stopped watch reopened by delayed board"; return false; }
+        watch(".117");
+        if (!model.matches.at(".117").watching || model.selected != ".117") { result = U"FAIL: restart watching"; return false; }
+        page = 4; set_language(U"ja");
+        INI settings_after_login{U"settings.ini"};
+        if (ui::tr(U"言語") != U"言語" || settings_after_login.getOr<String>(U"view.language", U"") != U"ja") { result = U"FAIL: settings language persistence"; return false; }
+        set_language(U"en");
         cancel_connection();
         if (page != ConnectionPage || !modal.empty() || !model.matches.empty() || connection || mode != Mode::Offline) { result = U"FAIL: return to connection screen"; return false; }
-        result = U"PASS: startup connection screen, invalid login stays on connection screen, no demo, offline match controls, console selection/fonts, private/global chat navigation and drafts, GGF/CSV export, pair import, replay guard, graph limit/pass alignment/step/playback/live/right-edge drag/follow new moves, winner/shared graph axis, player journal, draw win rate/mean margin, automatic GGF, encrypted account save/select/reload/delete, return to connection screen";
+        result = U"PASS: startup connection screen, invalid login stays on connection screen, no demo, offline match controls, console selection/fonts, chat navigation/close/reopen/drafts/permanent channels, placement audio resource and visible-board triggers/mute, stop/restart watching with delayed updates, settings language persistence, GGF/CSV export, pair import, replay guard, graph limit/pass alignment/step/playback/live/right-edge drag/follow new moves, winner/shared graph axis, player journal, draw win rate/mean margin, automatic GGF, encrypted account save/select/reload/delete, return to connection screen";
         start_demo(); toast.clear(); return true;
     }
     void draw();

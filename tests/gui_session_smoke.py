@@ -164,6 +164,8 @@ def run(registered, screen, screenshot, rejected=False, language=None):
         assert "tell /os help" in commands, commands
         assert not any(command.startswith("t /os tell ") for command in commands), commands
         assert "chat round trip" in result.read_text(encoding="utf-8"), result
+    if screen == "settings":
+        assert "settings language switch and persistence after login" in result.read_text(encoding="utf-8"), result
     print(f"PASS: {label} native login, {'connection screen' if rejected else 'lobby'}, match controls, {screen or 'default'} screen, user data unchanged")
 
 
@@ -173,6 +175,8 @@ if __name__ == "__main__":
     run(False, "requests", "guest-requests.png")
     run(True, "", "lobby.png")
     run(True, "players", "registered-players.png")
+    run(True, "settings", "settings.png")
+    run(False, "settings", "../build/guest-settings.png")
     run(True, "profile", "profile.png")
     run(True, "stats", "server-stats.png")
     run(True, "chat", "private-chat.png")

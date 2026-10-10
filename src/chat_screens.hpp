@@ -30,9 +30,10 @@ inline void Application::draw_chat() {
     state.output.sync(std::move(lines), state.origin);
     p.label(str(target), 23, 334, 137, text, true);
     p.label(target == ".chat" ? ui::tr(U"全体チャット") : target.starts_with(".") ? ui::tr(U"チャンネル") : target.starts_with("/") ? ui::tr(U"サービス") : ui::tr(U"個人チャット"), 13, 334, 173, muted);
-    if (p.button({1126, 141, 139, 36}, ui::tr(U"コピー"), false, state.output.selected())) Clipboard::SetText(String{state.output.selection_text()});
-    if (p.button({1279, 141, 140, 36}, ui::tr(U"最新に戻る"))) state.output.scroll_to(state.output.max_top());
-    if (p.button({1433, 141, 141, 36}, ui::tr(U"表示をクリア"))) { thread.first_message += thread.messages.size(); thread.messages.clear(); state = {}; }
+    if (p.button({1050, 141, 115, 36}, ui::tr(U"コピー"), false, state.output.selected())) Clipboard::SetText(String{state.output.selection_text()});
+    if (p.button({1177, 141, 115, 36}, ui::tr(U"最新に戻る"))) state.output.scroll_to(state.output.max_top());
+    if (p.button({1304, 141, 143, 36}, ui::tr(U"表示をクリア"))) { thread.first_message += thread.messages.size(); thread.messages.clear(); state = {}; }
+    if (p.button({1459, 141, 115, 36}, ui::tr(U"閉じる"))) { close_chat(target); return; }
     p.card({332, 215, 1242, 674});
     draw_text_output(state.output, output, "conversation-output");
     auto& draft = chat_drafts[target];

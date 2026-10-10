@@ -395,14 +395,22 @@ public:
     std::map<std::string, ChatThread> threads{{".chat", {}}, {".tourney", {}}};
     std::vector<std::string> order{".chat", ".tourney"};
     std::string selected = ".chat";
+    bool is_open(const std::string& target) const { return std::find(order.begin(), order.end(), target) != order.end(); }
     ChatThread& ensure(const std::string& target) {
-        auto [it, added] = threads.try_emplace(target);
-        if (added) order.push_back(target);
+        auto it = threads.try_emplace(target).first;
+        if (!is_open(target)) order.push_back(target);
         return it->second;
     }
     bool open(const std::string& target) {
         if (!conversation_target(target)) return false;
         ensure(target).unread = 0; selected = target; return true;
+    }
+    bool close(const std::string& target) {
+        if (target == ".chat" || target == ".tourney" || !is_open(target)) return false;
+        std::erase(order, target);
+        threads.at(target).unread = 0;
+        if (selected == target) selected = ".chat";
+        return true;
     }
     void append(const std::string& target, const std::string& sender, const std::string& text, bool outgoing = false) {
         auto& thread = ensure(target);
@@ -417,7 +425,7 @@ public:
         const auto service = message.head.substr(0, colon);
         // Copy replies into an explicitly opened service conversation. They must
         // still reach the match, board, rating and request parsers below.
-        if (!conversation_target(service) || !threads.contains(service)) return;
+        if (!conversation_target(service) || !is_open(service)) return;
         std::string text = ggs::trim(message.head.substr(colon + 1));
         if (text.empty() && message.body.empty()) return;
         for (const auto& line : message.body) text += "\n" + line;
@@ -449,6 +457,7 @@ public:
     uint64_t who_sequence = 0;
     std::map<std::string, Request> requests;
     std::set<std::string> watches;
+    std::set<std::string> stopped_watches, moved_matches;
     std::deque<ggs::Message> console;
     ChatBook chats;
     std::map<std::string, std::deque<std::string>> match_chat;
@@ -462,6 +471,27 @@ public:
     }
     Match& ensure(const std::string& id) {
         auto& m = matches[id]; m.id = id; return m;
+    }
+    void begin_watching(const std::string& id, uint64_t now) {
+        stopped_watches.erase(id); watches.insert(id);
+        auto& m = ensure(id); m.watching = true; m.watch_ms = now;
+    }
+    bool can_stop_watching(const std::string& id) const {
+        const auto found = matches.find(id);
+        if (found == matches.end() || (!found->second.watching && !watches.count(id))) return false;
+        const auto& m = found->second;
+        if (!m.finished && !username.empty()) {
+            if (m.player[0] == username || m.player[1] == username) return false;
+            for (int sub = 0; sub < m.games(); ++sub) if (m.game[sub].color_of(username) >= 0) return false;
+        }
+        return true;
+    }
+    bool stop_watching(const std::string& id) {
+        if (!can_stop_watching(id)) return false;
+        watches.erase(id); stopped_watches.insert(id); moved_matches.erase(id);
+        matches.at(id).watching = false;
+        if (selected == id) selected.clear();
+        return true;
     }
     void append_console(const ggs::Message& message) {
         console.push_back(message);
@@ -511,15 +541,21 @@ public:
             auto& g = m.game[sub];
             const bool first_board = !g.active;
             const int previous_ply = g.ply;
+            const int previous_discs = std::popcount(g.pos.black | g.pos.white);
             g.id = bm.game_id; g.receive(bm, now);
             if (m.games() == 2 && g.ply != previous_ply && g.ply == m.game[1 - sub].ply) m.game[1 - sub].clock_ms = now;
-            if (!bm.is_join && g.ply > previous_ply) ++move_events;
             if (m.player[0].empty()) {
                 m.player[0] = g.name[sub == 1 ? WHITE : BLACK];
                 m.player[1] = g.name[sub == 1 ? BLACK : WHITE];
             }
-            m.watching = true; watches.insert(m.id); m.finished = m.complete();
-            if (selected.empty() || (first_board && g.color_of(username) >= 0)) selected = m.id;
+            const bool own = !m.finished && g.color_of(username) >= 0;
+            if (own) stopped_watches.erase(m.id);
+            m.watching = !stopped_watches.count(m.id);
+            if (m.watching) watches.insert(m.id);
+            m.finished = m.complete();
+            if (m.watching && !first_board && !bm.is_join && g.ply > previous_ply
+                && std::popcount(g.pos.black | g.pos.white) > previous_discs) { ++move_events; moved_matches.insert(m.id); }
+            if (m.watching && (selected.empty() || (first_board && own))) selected = m.id;
             return;
         }
         ggs::GameEnd end;

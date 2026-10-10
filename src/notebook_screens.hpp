@@ -4,9 +4,7 @@
 namespace ggsb {
 inline void Application::draw_mosaic() {
     using namespace ui;
-    std::vector<Match*> matches;
-    for (auto& [id, m] : model.matches) if (m.watching || model.watches.count(id)) matches.push_back(&m);
-    std::stable_sort(matches.begin(), matches.end(), [](const auto* a, const auto* b) { return a->finished < b->finished; });
+    const auto matches = watched_matches();
     int mosaic_page = mosaic_offset / 4;
     p.scroll_list("mosaic", {332, 205, 1242, 780}, {1583, 215, 10, 770}, (int(matches.size()) + 3) / 4, 1, mosaic_page, 1);
     mosaic_offset = mosaic_page * 4;
@@ -21,11 +19,11 @@ inline void Application::draw_mosaic() {
             p.font(ui::tr(U"対局なし")).drawAt(14, tile.center(), muted); continue;
         }
         auto& m = *matches[mosaic_offset + slot];
-        p.clipped(str(m.player[0]) + U"  ×  " + str(m.player[1]), 20, {tile.x + 20, tile.y + 14, 443, 29}, text, true);
+        p.clipped(str(m.player[0]) + U"  ×  " + str(m.player[1]), 20, {tile.x + 20, tile.y + 14, tile.w - 186, 29}, text, true);
         const auto match_winner = m.winner();
         String outcome = match_winner ? (*match_winner < 0 ? ui::tr(U"引き分け") : ui::tr(U"勝者 ") + str(m.player[*match_winner])) : m.finished ? ui::tr(U"結果なし") : ui::tr(U"対局中");
         p.clipped(str(m.id) + U"  /  " + str(m.type) + U"  /  " + outcome, 12, {tile.x + 21, tile.y + 43, tile.w - 42, 20}, match_winner ? mint : muted, bool(match_winner));
-        if (p.button({tile.rightX() - 115, tile.y + 16, 94, 31}, ui::tr(U"詳細 →"))) { choose_match(m.id); page = 0; }
+        if (model.can_stop_watching(m.id) && p.button({tile.rightX() - 145, tile.y + 16, 124, 31}, ui::tr(U"観戦を終了"))) { stop_watching(m.id); continue; }
         for (int sub = 0; sub < m.games(); ++sub) {
             auto& g = m.game[sub]; RectF board{tile.x + 39 + sub * 299.0, tile.y + 116, 184, 184};
             for (int c = 0; c < 2; ++c) {
@@ -75,6 +73,8 @@ inline void Application::draw_mosaic() {
         p.font(Format(m.x_max())).drawAt(8, {graph.x, graph.bottomY() + 6}, muted);
         p.font(ui::tr(U"空きマス数")).drawAt(8, {graph.center().x, graph.bottomY() + 6}, muted);
         p.font(U"0").drawAt(8, {graph.rightX(), graph.bottomY() + 6}, muted);
+        if (!p.blocked && p.dragging_list.empty() && tile.mouseOver()) Cursor::RequestStyle(CursorStyle::Hand);
+        if (!p.blocked && p.dragging_list.empty() && tile.leftClicked()) { choose_match(m.id); page = 0; }
     }
 }
 
