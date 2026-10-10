@@ -29,6 +29,7 @@ public:
     };
     std::map<std::string, ChatView> chat_views;
     std::map<std::string, ui::Field> chat_drafts;
+    std::map<std::pair<std::string, std::string>, ui::Field> match_chat_drafts;
     int chat_tabs_offset = 0, watched_offset = 0;
     bool move_follow_tail = true;
     bool console_drag_vertical = false, console_drag_horizontal = false;
@@ -43,7 +44,7 @@ public:
     uint64_t last_playback = 0;
     int epoch = 0;
     std::string connected_scope;
-    ui::Field host{U"skatgame.net"}, port{U"5000"}, username, password, filter, command, chat_input;
+    ui::Field host{U"skatgame.net"}, port{U"5000"}, username, password, filter, command;
     ui::Field account_label;
     AccountVault accounts;
     std::string selected_account, account_error;
@@ -207,10 +208,15 @@ public:
     }
     void refresh_users() { send("t /os who 8 a"); send("t /os who 8r a"); }
     void refresh() { send("t /os match"); refresh_users(); send("t /os request"); }
+    bool submit_command() {
+        if (command.value.empty() || !send(command.value.toUTF8())) return false;
+        command.submitted(); console_view.scroll_to(console_view.max_top());
+        p.focus = "command"; p.hit_field = true; return true;
+    }
     void show_player_info(const std::string& name, bool game_stats = false) {
         if (auto info_request = player_info_command(name, game_stats); info_request && send(*info_request)) { page = 3; p.focus.clear(); }
     }
-    void reset_chat_views() { chat_views.clear(); chat_drafts.clear(); chat_tabs_offset = 0; chat_offset = 0; }
+    void reset_chat_views() { chat_views.clear(); chat_drafts.clear(); match_chat_drafts.clear(); command = {}; chat_tabs_offset = 0; chat_offset = 0; }
     void open_chat(const std::string& target) {
         if (!model.chats.open(target)) return;
         page = ChatPage; modal.clear(); p.focus = "conversation-input"; p.hit_field = true;
@@ -236,7 +242,8 @@ public:
         if (!conversation_target(target)) return;
         if (send(*cmd)) {
             model.chats.append(target, model.username, draft.value.toUTF8(), true);
-            draft = {}; chat_views[target].output.follow_tail = true;
+            draft.submitted(); chat_views[target].output.follow_tail = true;
+            p.focus = "conversation-input"; p.hit_field = true;
         }
     }
     void watch(const std::string& id) {
@@ -417,7 +424,9 @@ public:
         } else if (!synchro && color_preference) type += color_preference == 1 ? "b" : "w";
         return "t /os ask " + type + " " + clock + (clock != other ? " " + other : "") + (target.empty() ? "" : " " + target);
     }
+    ui::Field& match_chat_input() { return match_chat_drafts[{model.selected, chat_target.value.toUTF8()}]; }
     void submit_chat() {
+        auto& chat_input = match_chat_input();
         std::string target = chat_target.value.toUTF8(), value = chat_input.value.toUTF8();
         auto cmd = chat_command(target, value, model.selected);
         if (!cmd) { notify(ui::tr(U"宛先と対局を確認してください")); return; }
@@ -428,7 +437,8 @@ public:
                 auto& chat = model.match_chat[model.selected]; chat.push_back(model.username + ": " + value);
                 while (chat.size() > 300) chat.pop_front();
             } else model.chats.append(target, model.username, value, true);
-            chat_input = {}; chat_offset = 0;
+            chat_input.submitted(); chat_offset = 0;
+            p.focus = "chat"; p.hit_field = true;
         }
     }
     bool verify_offline_workflow(String& result) {

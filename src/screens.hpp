@@ -569,7 +569,8 @@ inline void Application::draw_inspector(Match& m) {
     }
     p.label(ui::tr(U"宛先: /os（対局）・whisper・ユーザー名"), 10, 1314, 870, muted);
     p.input("chat-target", chat_target, {1313, 894, 88, 43}, ui::tr(U"宛先"));
-    bool entered = p.input("chat", chat_input, {1408, 894, 111, 43}, ui::tr(U"メッセージ"));
+    auto& chat_input = match_chat_input();
+    bool entered = p.input("chat", chat_input, {1408, 894, 111, 43}, ui::tr(U"メッセージ"), false, false, true);
     if (p.button({1527, 894, 28, 43}, U"↑", true) || entered) submit_chat();
 }
 }

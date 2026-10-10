@@ -187,14 +187,27 @@ def run(registered, screen, screenshot, rejected=False, language=None):
         assert "chat round trip" in result.read_text(encoding="utf-8"), result
     if screen == "settings":
         assert "settings language switch and persistence after login" in result.read_text(encoding="utf-8"), result
+    if screen == "input-history":
+        assert "console and chat input history" in result.read_text(encoding="utf-8"), result
+        for command in ("t /os help", "t /os stored", "tell bob history for bob", "tell .chat history for .chat",
+                        "tell .tourney history for .tourney", "tell /os history for /os",
+                        "t /os tell a .117 match history for /os", "t /os tell o .117 match history for whisper"):
+            assert command in commands, (command, commands)
+        assert not any("unsent " in command for command in commands), commands
     print(f"PASS: {label} native login, {'connection screen' if rejected else 'lobby'}, match controls, {screen or 'default'} screen, user data unchanged")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--lobby-events", action="store_true", help="Verify live lobby notifications and keepalive over 64 seconds")
-    if parser.parse_args().lobby_events:
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--lobby-events", action="store_true", help="Verify live lobby notifications and keepalive over 64 seconds")
+    mode.add_argument("--input-history", action="store_true", help="Verify command/chat input history against a local server")
+    options = parser.parse_args()
+    if options.lobby_events:
         run(True, "lobby-events", "../build/lobby-events.png")
+        raise SystemExit(0)
+    if options.input_history:
+        run(True, "input-history", "../build/input-history.png")
         raise SystemExit(0)
     run(False, "", "guest-lobby.png")
     run(False, "players", "guest-players.png")

@@ -3,6 +3,7 @@
 #include "model.hpp"
 #include "scroll.hpp"
 #include "language.hpp"
+#include "input_history.hpp"
 
 namespace ggsb::ui {
 inline const ColorF background{0.035, 0.053, 0.074}, panel{background}, raised{background};
@@ -14,7 +15,24 @@ inline String clock_text(int seconds) {
     bool negative = seconds < 0; seconds = Abs(seconds);
     return (negative ? U"−" : U"") + Format(seconds / 60) + U":" + (seconds % 60 < 10 ? U"0" : U"") + Format(seconds % 60);
 }
-struct Field { String value; size_t cursor = 0; bool all = false, was_composing = false; Field(String v = U"") : value(std::move(v)), cursor(value.size()) {} };
+struct Field {
+    String value;
+    size_t cursor = 0;
+    bool all = false, was_composing = false;
+    InputHistory history;
+    Field(String v = U"") : value(std::move(v)), cursor(value.size()) {}
+    bool recall_history(bool older, bool newer, bool composing = false) {
+        if (older == newer || composing || was_composing) return false;
+        auto recalled = history.recall(older, {value.toUTF32(), cursor, all});
+        if (!recalled) return false;
+        value = String{recalled->text}; cursor = Min(recalled->cursor, value.size()); all = recalled->selected;
+        return true;
+    }
+    void submitted() {
+        history.submitted(value.toUTF32());
+        value.clear(); cursor = 0; all = was_composing = false;
+    }
+};
 
 class Painter {
 public:
@@ -115,7 +133,7 @@ public:
         RectF{x - 7, r.center().y - 11, 14, 22}.draw(focus == id || dragging_slider == id ? mint : text);
         return value != previous;
     }
-    bool input(const std::string& id, Field& state, RectF r, String placeholder = U"", bool secret = false, bool monospaced = false) {
+    bool input(const std::string& id, Field& state, RectF r, String placeholder = U"", bool secret = false, bool monospaced = false, bool with_history = false) {
         const auto& input_font = monospaced ? mono : font;
         if (!blocked) fields.push_back(id);
         if (!blocked && r.leftClicked()) { focus = id; state.cursor = state.value.size(); hit_field = true; }
@@ -143,6 +161,8 @@ public:
             if (KeyRight.down()) { state.cursor = Min(state.value.size(), state.cursor + 1); state.all = false; }
             if (KeyHome.down()) { state.cursor = 0; state.all = false; }
             if (KeyEnd.down()) { state.cursor = state.value.size(); state.all = false; }
+            if (with_history && !secret && !KeyControl.pressed() && !KeyAlt.pressed() && !KeyShift.pressed())
+                state.recall_history(KeyUp.down(), KeyDown.down(), !TextInput::GetEditingText().empty());
             if (state.value.size() > 2048) state.value.resize(2048);
             state.cursor = Min(state.cursor, state.value.size());
         }

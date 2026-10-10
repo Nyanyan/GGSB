@@ -6,12 +6,41 @@
 #include "../src/console.hpp"
 #include "../src/scroll.hpp"
 #include "../src/sound_settings.hpp"
+#include "../src/input_history.hpp"
 
 static int checks = 0;
 #define CHECK(value) do { ++checks; if (!(value)) throw std::runtime_error(std::string("line ") + std::to_string(__LINE__) + ": " #value); } while (false)
 using namespace ggsb;
 int main(int argc, char** argv) {
     try {
+        InputHistory input;
+        InputDraft draft{U"編集中の入力🙂", 3, true};
+        CHECK(!input.recall(true, draft) && !input.recall(false, draft));
+        input.submitted(U""); CHECK(input.size() == 0);
+        input.submitted(U"t /os help"); input.submitted(U"t /os match"); input.submitted(U"t /os match");
+        CHECK(input.size() == 2);
+        auto recalled = input.recall(true, draft);
+        CHECK(recalled && recalled->text == U"t /os match" && recalled->cursor == recalled->text.size() && !recalled->selected);
+        CHECK(input.recall(true, *recalled)->text == U"t /os help");
+        CHECK(!input.recall(true, {U"edited older command", 1, false}));
+        CHECK(input.recall(false, {U"edited older command", 1, false})->text == U"t /os match");
+        recalled = input.recall(false, {});
+        CHECK(recalled && recalled->text == draft.text && recalled->cursor == 3 && recalled->selected);
+        CHECK(!input.recall(false, {}));
+        CHECK(input.recall(true, {U"new draft", 2, false})->text == U"t /os match");
+        CHECK(input.recall(false, {})->text == U"new draft");
+        input.recall(true, draft); input.submitted(U"edited command");
+        CHECK(input.size() == 3 && !input.recall(false, {}));
+        CHECK(input.recall(true, {})->text == U"edited command");
+        InputHistory bounded;
+        for (size_t i = 1; i <= InputHistory::Limit + 5; ++i) bounded.submitted(std::u32string(1, char32_t(i)));
+        CHECK(bounded.size() == InputHistory::Limit);
+        for (size_t i = InputHistory::Limit + 5; i >= 6; --i) CHECK(bounded.recall(true, {})->text == std::u32string(1, char32_t(i)));
+        CHECK(!bounded.recall(true, {}));
+        InputHistory separate;
+        separate.submitted(U"other recipient");
+        CHECK(separate.recall(true, {})->text == U"other recipient");
+        CHECK(input.recall(true, {})->text == U"t /os match");
         SoundSettings audio;
         CHECK(audio.volume == 100 && !audio.chat_enabled && audio.gain() == 1);
         CHECK(!audio.chat_due("server:5000", {"bob"}));

@@ -38,7 +38,7 @@ inline void Application::draw_chat() {
     p.card({332, 215, 1242, 674});
     draw_text_output(state.output, output, "conversation-output");
     auto& draft = chat_drafts[target];
-    const bool entered = p.input("conversation-input", draft, {332, 909, 1120, 48}, ui::tr(U"メッセージ"));
+    const bool entered = p.input("conversation-input", draft, {332, 909, 1120, 48}, ui::tr(U"メッセージ"), false, false, true);
     if (p.button({1466, 909, 108, 48}, ui::tr(U"送信"), true, online() && !draft.value.empty()) || entered) submit_conversation();
 }
 }

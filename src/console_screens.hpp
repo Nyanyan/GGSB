@@ -117,9 +117,9 @@ inline void Application::draw_console() {
     if (p.button({1433, 141, 141, 36}, ui::tr(U"表示をクリア"))) { model.clear_console(); console_view = {}; sync_console(); }
     p.card({332, 215, 1242, 674});
     draw_text_output(console_view, {352, 234, 1176, 600}, "console-output");
-    bool entered = p.input("command", command, {332, 909, 1120, 48}, U"t /os match", false, true);
+    bool entered = p.input("command", command, {332, 909, 1120, 48}, U"t /os match", false, true, true);
     if (p.button({1466, 909, 108, 48}, ui::tr(U"送信"), true, online()) || entered) {
-        if (!command.value.empty() && send(command.value.toUTF8())) { command.value.clear(); command.cursor = 0; console_view.scroll_to(console_view.max_top()); }
+        submit_command();
     }
 }
 }

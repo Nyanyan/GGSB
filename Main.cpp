@@ -1,6 +1,7 @@
 #include <Siv3D.hpp>
 #include "src/screens.hpp"
 #include "src/preview.hpp"
+#include "tests/gui_input_history.hpp"
 
 void Main() {
     FileSystem::ChangeCurrentDirectory(FileSystem::ParentPath(FileSystem::ModulePath()));
@@ -173,7 +174,7 @@ void Main() {
             }
             TextWriter result{session_result, TextEncoding::UTF8_NO_BOM};
             const bool chat_test = chat_screen();
-            result.writeln(success ? chat_test ? U"PENDING: chat round trip" : session_screen == U"settings" ? U"PASS: login opens lobby, settings language switch and persistence after login" : U"PASS: login opens lobby, identity, match controls, quiet registration, normal/random ratings" : U"FAIL: login lobby / identity / match controls / registration toast");
+            if (!success || session_screen != U"input-history") result.writeln(success ? chat_test ? U"PENDING: chat round trip" : session_screen == U"settings" ? U"PASS: login opens lobby, settings language switch and persistence after login" : U"PASS: login opens lobby, identity, match controls, quiet registration, normal/random ratings" : U"FAIL: login lobby / identity / match controls / registration toast");
             if (!success) return;
             session_verified = true;
             if (session_screen == U"players") app.page = 2;
@@ -182,6 +183,12 @@ void Main() {
             else if (session_screen == U"stats") app.show_player_info("bob", true);
             else if (session_screen == U"requests") { app.page = 1; app.lobby_tab = 1; }
             else if (session_screen == U"challenge") app.challenge();
+            else if (session_screen == U"input-history") {
+                String history_result;
+                const bool verified = verify_input_history(app, history_result);
+                result.writeln(history_result);
+                if (!verified) return;
+            }
             else if (chat_test) {
                 app.open_chat(chat_destination());
                 app.chat_drafts[app.model.chats.selected].value = ggsb::ui::str(chat_sent_text());
