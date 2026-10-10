@@ -50,16 +50,19 @@ inline void Application::draw_shell() {
     if (p.button({144, 709, 62, 27}, ui::tr(U"一覧"))) page = 5;
     std::vector<std::string> watched;
     for (const auto& [id, m] : model.matches) if (m.watching || model.watches.count(id)) watched.push_back(id);
-    p.scroll_list("watched", {12, 746, 192, 192}, {210, 746, 8, 192}, int(watched.size()), 4, watched_offset);
-    for (int n = 0; n < 4 && watched_offset + n < int(watched.size()); ++n) {
+    p.scroll_list("watched", {12, 746, 192, 192}, {210, 746, 8, 192}, int(watched.size()), 3, watched_offset);
+    for (int n = 0; n < 3 && watched_offset + n < int(watched.size()); ++n) {
         const auto& id = watched[watched_offset + n]; auto& m = model.matches.at(id);
-        const double y = 746 + n * 48;
-        RectF r{12, y, 192, 44};
-        if (id == model.selected) RectF{12, r.y + 4, 3, 36}.draw(mint);
+        const double y = 746 + n * 64;
+        RectF r{12, y, 192, 60};
+        if (id == model.selected) RectF{12, r.y + 4, 3, 52}.draw(mint);
         p.clipped(str(m.player[0]) + U" / " + str(m.player[1]), 13, {24, y + 3, 143, 23}, id == model.selected ? text : muted, true);
-        p.label(m.games() == 2 ? U"SYNC" : U"8×8", 9, 24, y + 26, m.games() == 2 ? mint : blue);
-        p.label(str(id), 10, 77, y + 26, muted);
-        const bool stopped = model.can_stop_watching(id) && p.button({180, y + 9, 25, 26}, U"×");
+        const auto winner = m.winner();
+        const bool finished = m.finished || m.complete();
+        const String result = winner ? (*winner < 0 ? ui::tr(U"引き分け") : ui::tr(U"勝者 ") + str(m.player[*winner])) : finished ? ui::tr(U"結果なし") : ui::tr(U"対局中");
+        p.clipped(result, 12, {24, y + 25, 143, 19}, winner ? mint : muted, finished);
+        p.clipped((finished ? ui::tr(U"終局") + U" · " : U"") + (m.games() == 2 ? U"SYNC" : U"8×8") + U" · " + str(id), 9, {24, y + 46, 143, 15}, muted);
+        const bool stopped = model.can_stop_watching(id) && p.button({180, y + 17, 25, 26}, U"×");
         if (stopped) { stop_watching(id); continue; }
         if (!p.blocked && p.dragging_list.empty() && r.leftClicked()) { choose_match(id); page = 0; }
     }
