@@ -166,6 +166,18 @@ Create the distribution ZIP at `build/GGSB-windows-x64.zip` with the following c
 ./tools/package.ps1
 ```
 
+To create an installer, install [Inno Setup 7](https://jrsoftware.org/isdl.php), then run:
+
+```powershell
+./tools/installer.ps1
+```
+
+This builds Release / x64, refreshes the distribution ZIP, and creates `build/GGSB-<version>-windows-x64-setup.exe` from the ZIP's contents. The default version is the date of the latest source commit, such as `2026.10.10`; override it with `-Version 1.0.0`. Use `-CompilerPath "Path to ISCC.exe"` if the compiler is not found, or `-SkipBuild` to package an already built Release executable.
+
+The installer supports English and Japanese, installs for the current Windows user without requiring administrator rights, and defaults to `%LOCALAPPDATA%\Programs\GGSB`. It adds a Start menu shortcut and offers a desktop shortcut. Settings, accounts, logs and records are saved beside the installed executable, preserved during updates, and left in place after uninstalling. The ZIP remains available for portable use.
+
+Run `python tests/installer_smoke.py build/GGSB-<version>-windows-x64-setup.exe` to verify installation, an offline app launch, updates and uninstalling in an isolated directory under `build/`. The test leaves your shortcuts untouched and refuses to run if GGSB is already installed for the current Windows user.
+
 ### Tests and screen previews
 
 Run these commands in an environment with MinGW's `g++`:
@@ -394,6 +406,18 @@ Visual Studioからは `GGSB.sln` を開き、Release / x64でビルドしてく
 ```powershell
 ./tools/package.ps1
 ```
+
+インストーラも作る場合は、[Inno Setup 7](https://jrsoftware.org/isdl.php) を導入して次を実行してください。
+
+```powershell
+./tools/installer.ps1
+```
+
+Release / x64のビルドと配布用ZIPの更新を行い、そのZIPから `build/GGSB-<バージョン>-windows-x64-setup.exe` を作ります。バージョンは最新のソースコミットの日付（例：`2026.10.10`）です。`-Version 1.0.0` で指定もできます。コンパイラーが見つからない場合は `-CompilerPath "ISCC.exeのパス"`、ビルド済みのRelease版を使う場合は `-SkipBuild` を指定してください。
+
+インストーラは英語と日本語に対応し、管理者権限なしで現在のWindowsユーザー用に導入します。標準の保存先は `%LOCALAPPDATA%\Programs\GGSB` です。スタートメニューにショートカットを追加し、デスクトップへの追加も選べます。設定・アカウント・ログ・棋譜は実行ファイルの隣に保存し、更新時に引き継ぎます。アンインストール後も保存データは残します。インストールせずに使いたい場合は配布用ZIPを利用できます。
+
+`python tests/installer_smoke.py build/GGSB-<バージョン>-windows-x64-setup.exe` で、インストール・オフライン起動・更新・アンインストールを確認できます。テスト専用の保存先を `build/` 内に作り、ショートカットは変更しません。現在のWindowsユーザーにGGSBがインストール済みの場合は、テストを実行しません。
 
 ### テストと画面確認
 
