@@ -7,7 +7,7 @@ import struct
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-TEXT_EXTENSIONS = {".cpp", ".hpp", ".h", ".py", ".ps1", ".md", ".txt", ".json", ".xml", ".svg", ".sln", ".vcxproj"}
+TEXT_EXTENSIONS = {".cpp", ".hpp", ".h", ".py", ".ps1", ".iss", ".md", ".txt", ".json", ".xml", ".svg", ".sln", ".vcxproj"}
 PATH_PATTERNS = {
     "absolute Windows path": re.compile(r"(?<![A-Za-z0-9])[A-Za-z]:[/\\](?![/\\])[^\s\x00\"<>|]{3,}"),
     "absolute Unix path": re.compile(r"(?<![A-Za-z0-9])/(?:Users|home|mnt|media|Volumes|private|root|opt|tmp)/[^\s\x00\"<>|]+"),
