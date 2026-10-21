@@ -28,6 +28,7 @@ copy /Y "$(TargetPath)" "$(ProjectDir)App\GGSB.exe"</Command></PostBuildEvent>
   <ItemGroup><ClInclude Include="src\console.hpp" /><ClInclude Include="src\console_screens.hpp" /><ClInclude Include="src\chat_screens.hpp" /><ClInclude Include="src\scroll.hpp" /><ClInclude Include="src\language.hpp" /><ClInclude Include="src\preview.hpp" /><ClInclude Include="src\sound_settings.hpp" /></ItemGroup>
   <ItemGroup><ClInclude Include="src\input_history.hpp" /><ClInclude Include="tests\gui_input_history.hpp" /></ItemGroup>
   <ItemGroup><ClInclude Include="src\theme.hpp" /><ClInclude Include="tests\gui_theme.hpp" /></ItemGroup>
+  <ItemGroup><ClInclude Include="tests\gui_text_size.hpp" /></ItemGroup>
   <ItemGroup><ResourceCompile Include="App\Resource.rc" /></ItemGroup>
   <ItemGroup><LanguagePack Include="assets\languages\*.json" /></ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

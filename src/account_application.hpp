@@ -42,9 +42,9 @@ inline void Application::draw_account_picker(RectF region) {
         if (!p.blocked && row.mouseOver()) Cursor::RequestStyle(CursorStyle::Hand);
         if (!p.blocked && p.dragging_list.empty() && row.leftClicked()) select_account(a.id);
     }
-    if (!count) p.font(account_error.empty() ? ui::tr(U"保存済みアカウントなし") : tr(str(account_error))).draw(14, RectF{list.x + 8, list.y + 22, list.w - 16, 150}, account_error.empty() ? muted : orange);
+    if (!count) p.font(account_error.empty() ? ui::tr(U"保存済みアカウントなし") : tr(str(account_error))).draw(p.font_size(14), RectF{list.x + 8, list.y + 22, list.w - 16, 150}, account_error.empty() ? muted : orange);
     p.label(Format(count) + ui::tr(U"件"), 10, list.x, list.bottomY() + 8, muted);
-    p.font(ui::tr(U"Windowsユーザーごとに暗号化してローカル保存します。")).draw(12, RectF{list.x, list.bottomY() + 54, list.w, 65}, muted);
+    p.font(ui::tr(U"Windowsユーザーごとに暗号化してローカル保存します。")).draw(p.font_size(12), RectF{list.x, list.bottomY() + 54, list.w, 65}, muted);
 }
 inline void Application::seed_account_preview() {
     accounts = AccountVault{std::filesystem::path(L"records/gui_smoke/accounts-preview.dat")};

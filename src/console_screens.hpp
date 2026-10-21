@@ -24,7 +24,7 @@ inline void Application::seed_console_preview() {
 }
 inline void Application::draw_text_output(ConsoleBuffer& view, RectF output, const std::string& focus_id) {
     using namespace ui;
-    const double font_size = 16, row_height = 24, cell_width = p.mono(U"M").region(font_size).w;
+    const double font_size = p.font_size(16), row_height = 24, cell_width = p.mono(U"M").region(font_size).w;
     view.viewport(int(output.h / row_height), int(output.w / cell_width));
     const RectF vertical{output.rightX() + 18, output.y, 12, output.h};
     const RectF horizontal{output.x, output.bottomY() + 18, output.w, 10};
@@ -96,13 +96,13 @@ inline void Application::draw_text_output(ConsoleBuffer& view, RectF output, con
             cell += advance; if (cell > view.left + view.columns) break;
         }
     }
-    if (view.lines.empty()) p.mono(ui::tr(U"メッセージなし")).draw(16, output.pos, muted);
+    if (view.lines.empty()) p.mono(ui::tr(U"メッセージなし")).draw(p.font_size(16), output.pos, muted);
     vertical.draw(background);
     Line{vertical.center().x, vertical.y, vertical.center().x, vertical.bottomY()}.draw(2, line);
     Line{horizontal.x, horizontal.center().y, horizontal.rightX(), horizontal.center().y}.draw(2, line);
     if (view.max_top()) { vthumb.y = vertical.y + (vertical.h - thumb_height) * view.top / view.max_top(); vthumb.draw(console_drag_vertical ? mint : muted); }
     if (view.max_left()) { horizontal.draw(background); hthumb.x = horizontal.x + (horizontal.w - thumb_width) * view.left / view.max_left(); hthumb.draw(console_drag_horizontal ? mint : muted); }
-    p.mono(Format(view.lines.empty() ? 0 : view.top + 1) + U"–" + Format(Min(int(view.lines.size()), view.top + view.rows)) + U" / " + Format(view.lines.size())).draw(11, Vec2{output.x + 1, output.bottomY() + 34}, muted);
+    p.mono(Format(view.lines.empty() ? 0 : view.top + 1) + U"–" + Format(Min(int(view.lines.size()), view.top + view.rows)) + U" / " + Format(view.lines.size())).draw(p.font_size(11), Vec2{output.x + 1, output.bottomY() + 34}, muted);
     p.label(view.follow_tail ? ui::tr(U"最新を表示") : ui::tr(U"履歴を表示"), 11, output.rightX() - 80, output.bottomY() + 34, view.follow_tail ? mint : muted);
 }
 

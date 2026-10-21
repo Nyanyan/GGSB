@@ -9,7 +9,7 @@ inline void Application::draw_chat() {
     thread.unread = 0;
     auto& state = chat_views[target];
     const RectF output{352, 234, 1176, 600};
-    const int columns = Max(1, int(output.w / p.mono(U"M").region(16).w));
+    const int columns = Max(1, int(output.w / p.mono(U"M").region(p.font_size(16)).w));
     std::vector<std::u32string> lines;
     for (const auto& [id, count] : state.row_counts) if (id < thread.first_message) state.origin += count;
     state.row_counts.clear();

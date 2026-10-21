@@ -85,6 +85,7 @@ public:
         animations = settings.getOr<bool>(U"view.animations", true);
         ui::language_pack().select(settings.getOr<String>(U"view.language", U"en"));
         set_theme(settings.getOr<String>(U"view.theme", U"dark"), false);
+        p.enlarge_small_text = settings.getOr<bool>(U"view.enlarge_small_text", false);
         if (accounts.load(account_error)) if (const auto* account = accounts.find(accounts.preferred())) select_account(account->id);
         Wave wave(4410, Arg::sampleRate = 44100);
         for (size_t i = 0; i < wave.size(); ++i) {
@@ -147,6 +148,7 @@ public:
         settings.write(U"view", U"legal_hints", legal_hints); settings.write(U"view", U"sound", sound); settings.write(U"view", U"animations", animations);
         settings.write(U"view", U"language", ui::language_pack().selected());
         settings.write(U"view", U"theme", ui::theme_name());
+        settings.write(U"view", U"enlarge_small_text", p.enlarge_small_text);
         settings.write(U"audio", U"volume", audio.volume); settings.write(U"audio", U"chat_enabled", audio.chat_enabled);
         for (const auto& [key, enabled] : audio.chats) settings.write(U"chat_sound", ui::str(key), enabled);
         if (!settings.save(U"settings.ini")) notify(ui::tr(U"設定を保存できませんでした"));
@@ -181,6 +183,10 @@ public:
         const double width = (region.w - 12) / 2;
         if (p.button({region.x, region.y, width, region.h}, ui::tr(U"ダーク"), ui::current_theme == ui::Theme::Dark)) set_theme(U"dark");
         if (p.button({region.x + width + 12, region.y, width, region.h}, ui::tr(U"ライト"), ui::current_theme == ui::Theme::Light)) set_theme(U"light");
+    }
+    void set_text_size(const String& name, bool persist = true) {
+        p.enlarge_small_text = name == U"large";
+        if (persist) save_settings();
     }
     void start_demo() {
         p.focus.clear(); modal.clear();

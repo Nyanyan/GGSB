@@ -10,13 +10,13 @@ inline void Application::draw_mosaic() {
     mosaic_offset = mosaic_page * 4;
     p.label(ui::tr(U"観戦中: ") + Format(matches.size()) + ui::tr(U"対戦"), 13, 334, 150, mint, true);
     if (p.button({1209, 145, 72, 36}, U"←", false, mosaic_offset > 0)) mosaic_offset -= 4;
-    p.font(Format(mosaic_offset / 4 + 1) + U" / " + Format(Max(1, (int(matches.size()) + 3) / 4))).drawAt(15, {1326, 163}, text);
+    p.font(Format(mosaic_offset / 4 + 1) + U" / " + Format(Max(1, (int(matches.size()) + 3) / 4))).drawAt(p.font_size(15), {1326, 163}, text);
     if (p.button({1372, 145, 72, 36}, U"→", false, mosaic_offset + 4 < int(matches.size()))) mosaic_offset += 4;
     if (p.button({1459, 145, 115, 36}, ui::tr(U"対局を追加"))) page = 1;
     for (int slot = 0; slot < 4; ++slot) {
         RectF tile{332 + (slot % 2) * 634.0, 215 + (slot / 2) * 397.0, 608, 373}; p.card(tile);
         if (mosaic_offset + slot >= int(matches.size())) {
-            p.font(ui::tr(U"対局なし")).drawAt(14, tile.center(), muted); continue;
+            p.font(ui::tr(U"対局なし")).drawAt(p.font_size(14), tile.center(), muted); continue;
         }
         auto& m = *matches[mosaic_offset + slot];
         p.clipped(str(m.player[0]) + U"  ×  " + str(m.player[1]), 20, {tile.x + 20, tile.y + 14, tile.w - 186, 29}, text, true);
@@ -30,7 +30,7 @@ inline void Application::draw_mosaic() {
                 const double y = tile.y + 66 + c * 22;
                 p.clipped((c == BLACK ? U"● " : U"○ ") + str(g.name[c]), 11, {board.x, y, 128, 18}, text, true);
                 const auto value = g.evaluation(c, g.ply);
-                p.mono(value ? signed_value(*value) : U"—").draw(12, Arg::topRight = Vec2{board.rightX(), y}, text);
+                p.mono(value ? signed_value(*value) : U"—").draw(p.font_size(12), Arg::topRight = Vec2{board.rightX(), y}, text);
                 if (g.active && !g.finished && g.pos.to_move == c && m.clock_running(sub)) Line{board.x, y + 19, board.rightX(), y + 19}.draw(1, mint);
             }
             board.draw(ColorF{0.073, 0.225, 0.189}).drawFrame(1, line);
@@ -43,7 +43,7 @@ inline void Application::draw_mosaic() {
                 Circle{center, cell_size * 0.39}.draw(c == BLACK ? ColorF{0.025, 0.035, 0.042} : ColorF{0.88, 0.94, 0.95}).drawFrame(0.7, c == BLACK ? ColorF{0.17, 0.23, 0.26} : ColorF{0.96});
                 if (cell == g.last_cell) Circle{center, 2}.draw(c == BLACK ? board_hint : ColorF{0.12, 0.40, 0.31});
             }
-            if (!g.active) p.font(ui::tr(U"受信中")).drawAt(16, board.center(), mint);
+            if (!g.active) p.font(ui::tr(U"受信中")).drawAt(p.font_size(16), board.center(), mint);
             p.label(U"● " + Format(disc_count(g.pos, BLACK)) + U"  ○ " + Format(disc_count(g.pos, WHITE)), 11, board.x, board.bottomY() + 5, text);
             p.label(ui::tr(U"空き ") + Format(64 - std::popcount(g.pos.black | g.pos.white)), 10, board.rightX() - 48, board.bottomY() + 6, muted);
         }
@@ -52,8 +52,8 @@ inline void Application::draw_mosaic() {
             for (int c = 0; c < 2; ++c) {
                 const auto& g = m.game[0]; double y = tile.y + 123 + c * 70;
                 p.clipped(str(g.name[c]), 21, {tile.x + 291, y, 230, 29}, text, true);
-                p.mono(g.has_clock ? clock_text(g.remaining(c, now(), m.clock_running(0) && (online() || mode == Mode::Demo))) : U"--:--").draw(19, Vec2{tile.x + 291, y + 30}, g.pos.to_move == c && !g.finished ? mint : muted);
-                p.font(Format(disc_count(g.pos, c))).drawAt(29, {tile.x + 550, y + 29}, text);
+                p.mono(g.has_clock ? clock_text(g.remaining(c, now(), m.clock_running(0) && (online() || mode == Mode::Demo))) : U"--:--").draw(p.font_size(19), Vec2{tile.x + 291, y + 30}, g.pos.to_move == c && !g.finished ? mint : muted);
+                p.font(Format(disc_count(g.pos, c))).drawAt(p.font_size(29), {tile.x + 550, y + 29}, text);
             }
         }
         RectF graph{tile.x + 21, tile.y + 337, 533, 20};
@@ -68,11 +68,11 @@ inline void Application::draw_mosaic() {
         p.label(m.games() == 2 ? ui::tr(U"2局合算") : ui::tr(U"評価値"), 9, graph.x, graph.y - 11, muted);
         p.clipped(U"↑ " + str(m.player[0]), 9, {graph.x + 110, graph.y - 11, 181, 13}, mint);
         p.clipped(U"↓ " + str(m.player[1]), 9, {graph.x + 305, graph.y - 11, 181, 13}, blue);
-        p.mono(U"+" + ToString(scale, 0)).draw(8, Vec2{graph.rightX() + 5, graph.y - 3}, mint);
-        p.mono(U"−" + ToString(scale, 0)).draw(8, Vec2{graph.rightX() + 5, graph.bottomY() - 9}, blue);
-        p.font(Format(m.x_max())).drawAt(8, {graph.x, graph.bottomY() + 6}, muted);
-        p.font(ui::tr(U"空きマス数")).drawAt(8, {graph.center().x, graph.bottomY() + 6}, muted);
-        p.font(U"0").drawAt(8, {graph.rightX(), graph.bottomY() + 6}, muted);
+        p.mono(U"+" + ToString(scale, 0)).draw(p.font_size(8), Vec2{graph.rightX() + 5, graph.y - 3}, mint);
+        p.mono(U"−" + ToString(scale, 0)).draw(p.font_size(8), Vec2{graph.rightX() + 5, graph.bottomY() - 9}, blue);
+        p.font(Format(m.x_max())).drawAt(p.font_size(8), {graph.x, graph.bottomY() + 6}, muted);
+        p.font(ui::tr(U"空きマス数")).drawAt(p.font_size(8), {graph.center().x, graph.bottomY() + 6}, muted);
+        p.font(U"0").drawAt(p.font_size(8), {graph.rightX(), graph.bottomY() + 6}, muted);
         if (!p.blocked && p.dragging_list.empty() && tile.mouseOver()) Cursor::RequestStyle(CursorStyle::Hand);
         if (!p.blocked && p.dragging_list.empty() && tile.leftClicked()) { choose_match(m.id); page = 0; }
     }
@@ -104,7 +104,7 @@ inline void Application::draw_records() {
         p.label(Format(s.included.size()) + ui::tr(U"対戦  /  ") + (s.active ? ui::tr(U"記録中") : ui::tr(U"停止中")), 10, 359, row.y + 47, s.active ? mint : muted);
         if (!p.blocked && p.dragging_list.empty() && row.leftClicked()) { selected_session = s.id; tracking_player.value = str(s.player); tracking_player.cursor = tracking_player.value.size(); records_offset = 0; }
     }
-    if (!n) p.font(ui::tr(U"プレイヤーを選び、記録を開始すると区間がここに残ります。")).draw(15, RectF{355, 322, 224, 120}, muted);
+    if (!n) p.font(ui::tr(U"プレイヤーを選び、記録を開始すると区間がここに残ります。")).draw(p.font_size(15), RectF{355, 322, 224, 120}, muted);
     p.label(mode == Mode::Demo ? ui::tr(U"DEMO / サンプル集計") : ui::tr(U"自動保存 · records/players.ggsb"), 11, 352, 926, mode == Mode::Demo ? orange : muted);
     session = book.find(selected_session);
     const std::string player = session ? session->player : tracking_player.value.toUTF8();
@@ -126,7 +126,10 @@ inline void Application::draw_records() {
     const int count = records_tab == 0 ? int(stats.size()) : int(history.size());
     p.scroll_list("records-table", {641, 462, 909, 338}, {1558, 476, 10, 308}, count, 6, records_offset, 2);
     if (records_tab == 0) {
-        p.label(ui::tr(U"対戦相手"), 12, 650, 437, muted); p.label(ui::tr(U"対戦 (SYNC)"), 12, 875, 437, muted); p.label(ui::tr(U"勝・分・負"), 12, 1053, 437, muted); p.label(ui::tr(U"勝率"), 12, 1228, 437, muted); p.label(ui::tr(U"平均石差 / 1局"), 12, 1403, 437, muted);
+        p.label(ui::tr(U"対戦相手"), 12, 650, 437, muted); p.label(ui::tr(U"対戦 (SYNC)"), 12, 875, 437, muted); p.label(ui::tr(U"勝・分・負"), 12, 1053, 437, muted); p.label(ui::tr(U"勝率"), 12, 1228, 437, muted);
+        String margin_title = ui::tr(U"平均石差 / 1局");
+        if (p.font(margin_title).region(p.font_size(12)).w > 151) margin_title.replace(U" / ", U"\n/ ");
+        p.label(margin_title, 12, 1403, 437, muted);
         for (int i = records_offset; i < count && i < records_offset + 6; ++i) {
             const auto& s = stats[i]; double y = 481 + (i - records_offset) * 51;
             p.clipped(str(s.opponent), 18, {650, y, 210, 30}, text, true);
@@ -149,7 +152,7 @@ inline void Application::draw_records() {
             Line{650, y + 43, 1550, y + 43}.draw(1, line);
         }
     }
-    if (!count) p.font(records_tab == 0 ? ui::tr(U"記録開始後の終局が届くと、相手別の成績が表示されます。") : ui::tr(U"サーバー履歴を取得するか、対局の終局を待ってください。")).drawAt(15, {1100, 607}, muted);
+    if (!count) p.font(records_tab == 0 ? ui::tr(U"記録開始後の終局が届くと、相手別の成績が表示されます。") : ui::tr(U"サーバー履歴を取得するか、対局の終局を待ってください。")).drawAt(p.font_size(15), {1100, 607}, muted);
     p.label(Format(count) + ui::tr(U"件  ·  スクロールで続きを表示"), 11, 646, 799, muted);
     p.card({626, 837, 948, 123});
     p.label(ui::tr(U"シンクロ戦は2局合わせて1対戦。勝率は (勝 + 0.5 × 分) ÷ 対戦数。"), 13, 648, 853, text);

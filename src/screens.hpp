@@ -33,7 +33,7 @@ inline void Application::draw_shell() {
         p.clipped(str(target), 15, {24, y + 6, global ? 57.0 : closable ? 122.0 : 143.0, 23}, active ? mint : text, active);
         if (global) p.label(ui::tr(U"全体"), 12, 84, y + 8, muted);
         const auto& thread = model.chats.threads.at(target);
-        if (thread.unread) p.mono(Format(thread.unread)).draw(11, Arg::topRight = Vec2{closable ? 173.0 : 200.0, y + 8}, mint);
+        if (thread.unread) p.mono(Format(thread.unread)).draw(p.font_size(11), Arg::topRight = Vec2{closable ? 173.0 : 200.0, y + 8}, mint);
         const bool closed = closable && p.close_button({180, y + 5, 24, 24});
         if (closed) { close_chat(target); return; }
         if (!p.blocked && row.mouseOver()) Cursor::RequestStyle(CursorStyle::Hand);
@@ -71,7 +71,7 @@ inline void Application::draw_shell() {
     const String titles[] = {ui::tr(U"対局・観戦"), ui::tr(U"ロビー"), ui::tr(U"プレイヤー"), ui::tr(U"コンソール"), ui::tr(U"接続・設定"), ui::tr(U"複数対局"), ui::tr(U"記録・相手別成績")};
     p.label(page == ChatPage ? ui::tr(U"チャット") : titles[page], 26, 256, 29, text, true);
     String status = mode == Mode::Demo ? ui::tr(U"OFFLINE DEMO") : mode == Mode::Record ? ui::tr(U"RECORD REVIEW") : online() ? ui::tr(U"CONNECTED") : connection ? ui::tr(U"CONNECTING") : ui::tr(U"未接続");
-    p.font(status).draw(12, Arg::topRight = Vec2{1496, 39}, mode == Mode::Live && !online() ? orange : muted);
+    p.font(status).draw(p.font_size(12), Arg::topRight = Vec2{1496, 39}, mode == Mode::Live && !online() ? orange : muted);
     Line{254, 83, 1499, 83}.draw(1, line);
     // Status bar
     RectF{0, 976, 1524, 24}.draw(background);
@@ -104,10 +104,10 @@ inline void Application::draw_board(Match& m, int sub, RectF region) {
         p.clipped(str(name), 16, {x + 24, y, column - 24, 27}, text, true);
         const auto value = g.evaluation(c, shown_ply);
         p.label(ui::tr(U"評価値"), 11, x + 24, y + 29, muted);
-        const double eval_x = x + 24 + p.font(ui::tr(U"評価値")).region(11).w + 10;
-        p.mono(value ? signed_value(*value) : U"—").draw(18, Vec2{eval_x, y + 25}, value ? text : muted);
+        const double eval_x = x + 24 + p.font(ui::tr(U"評価値")).region(p.font_size(11)).w + 10;
+        p.mono(value ? signed_value(*value) : U"—").draw(p.font_size(18), Vec2{eval_x, y + 25}, value ? text : muted);
         bool running = m.clock_running(sub) && (online() || mode == Mode::Demo);
-        p.mono(cursor() >= 0 || !g.has_clock ? U"--:--" : clock_text(g.remaining(c, now(), running))).draw(20, Vec2{x + 24, y + 53}, g.remaining(c, now(), running) < 30 && g.has_clock ? red : text);
+        p.mono(cursor() >= 0 || !g.has_clock ? U"--:--" : clock_text(g.remaining(c, now(), running))).draw(p.font_size(20), Vec2{x + 24, y + 53}, g.remaining(c, now(), running) < 30 && g.has_clock ? red : text);
         std::optional<double> normal_rating, random_rating;
         if (const auto* user = model.find_user(name)) { normal_rating = user->rating; random_rating = user->random_rating; }
         auto& current_rating = m.type.find_first_of("rR") == std::string::npos ? normal_rating : random_rating;
@@ -128,8 +128,8 @@ inline void Application::draw_board(Match& m, int sub, RectF region) {
     }
     for (int i = 0; i < 8; ++i) {
         int coord = flip_board ? 7 - i : i;
-        p.font(String(1, char32(U'A' + coord))).drawAt(11, {board.x + (i + 0.5) * cell, board.y - 12}, muted);
-        p.font(Format(coord + 1)).drawAt(11, {board.x - 21, board.y + (i + 0.5) * cell}, muted);
+        p.font(String(1, char32(U'A' + coord))).drawAt(p.font_size(11), {board.x + (i + 0.5) * cell, board.y - 12}, muted);
+        p.font(Format(coord + 1)).drawAt(p.font_size(11), {board.x - 21, board.y + (i + 0.5) * cell}, muted);
     }
     for (int i = 0; i < 64; ++i) {
         const int display = flip_board ? 63 - i : i;
@@ -154,7 +154,7 @@ inline void Application::draw_board(Match& m, int sub, RectF region) {
             if (square.leftClicked()) { active_board = sub; play_cell(m, sub, i); }
         }
     }
-    if (!g.active) p.font(ui::tr(U"盤面受信待ち")).drawAt(18, board.center(), text);
+    if (!g.active) p.font(ui::tr(U"盤面受信待ち")).drawAt(p.font_size(18), board.center(), text);
     double bottom = region.bottomY() - 28;
     Circle{region.x + 26, bottom + 12, 6}.draw(ColorF{0.025}).drawFrame(1, muted);
     p.label(Format(disc_count(position, BLACK)), 15, region.x + 39, bottom, text);
@@ -205,16 +205,16 @@ inline void Application::draw_graph(Match& m, RectF region) {
     for (int j = -2; j <= 2; ++j) {
         double y = y_for(range * j / 2);
         Line{plot.x, y, plot.rightX(), y}.draw(j == 0 ? 1.2 : 1.0, j == 0 ? line : ColorF{line, 0.5});
-        p.mono((j > 0 ? U"+" : U"") + ToString(range * j / 2, 0)).draw(10, Vec2{region.x + 10, y - 7}, j > 0 ? mint : j < 0 ? blue : muted);
+        p.mono((j > 0 ? U"+" : U"") + ToString(range * j / 2, 0)).draw(p.font_size(10), Vec2{region.x + 10, y - 7}, j > 0 ? mint : j < 0 ? blue : muted);
     }
     const int tick_step = limit <= 30 ? 5 : 10;
     for (int count = 0; count < limit; count += tick_step) {
         if (count > 0 && limit - count < tick_step / 2) continue;
         double x = x_for(count); Line{x, plot.y, x, plot.bottomY()}.draw(1, ColorF{line, 0.4});
-        p.font(Format(m.empty_squares(count, sub))).drawAt(10, {x, plot.bottomY() + 15}, muted);
+        p.font(Format(m.empty_squares(count, sub))).drawAt(p.font_size(10), {x, plot.bottomY() + 15}, muted);
     }
     Line{plot.rightX(), plot.y, plot.rightX(), plot.bottomY()}.draw(1, ColorF{line, 0.6});
-    p.font(U"0").drawAt(10, {plot.rightX(), plot.bottomY() + 15}, text);
+    p.font(U"0").drawAt(p.font_size(10), {plot.rightX(), plot.bottomY() + 15}, text);
     auto draw_series = [&](const std::vector<std::pair<int, double>>& values, ColorF color, double sign) {
         LineString points;
         for (const auto& [ply, value] : values) points.push_back({x_for(ply), y_for(value * sign)});
@@ -222,7 +222,7 @@ inline void Application::draw_graph(Match& m, RectF region) {
         if (!points.empty()) Circle{points.back(), 3.5}.draw(color);
     };
     draw_series(a, mint, 1); draw_series(b, blue, -1);
-    if (a.empty() && b.empty()) p.font(ui::tr(U"評価値未受信")).drawAt(14, plot.center(), muted);
+    if (a.empty() && b.empty()) p.font(ui::tr(U"評価値未受信")).drawAt(p.font_size(14), plot.center(), muted);
     const bool hovering = !p.blocked && plot.mouseOver();
     if (hovering && MouseL.down()) graph_dragging = true;
     if (!p.blocked && (hovering || graph_dragging)) {
@@ -245,7 +245,7 @@ inline void Application::draw_arena() {
     auto* m = selected();
     if (!m) {
         p.card({332, 143, 1240, 810}); p.logo({952, 365}, 1.8);
-        p.bold(ui::tr(U"対局未選択")).drawAt(24, {952, 456}, text);
+        p.bold(ui::tr(U"対局未選択")).drawAt(p.font_size(24), {952, 456}, text);
         if (p.button({763, 580, 180, 44}, ui::tr(U"ロビーを開く"), true)) page = 1;
         if (p.button({961, 580, 180, 44}, ui::tr(U"棋譜を開く"))) open_record();
         return;
@@ -270,11 +270,11 @@ inline void Application::draw_arena() {
         if (winner) p.label(*winner < 0 ? ui::tr(U"引き分け") : *winner == i ? ui::tr(U"勝者") : ui::tr(U"敗者"), 13, x + 13, 209, *winner == i ? mint : *winner < 0 ? blue : muted, true);
         else if (m->finished) p.label(ui::tr(U"結果なし"), 12, x + 13, 209, muted);
     }
-    p.bold(Format(shown_discs(*m, 0))).drawAt(29, {729, 197}, mint);
-    p.bold(Format(shown_discs(*m, 1))).drawAt(29, {850, 197}, blue);
-    p.font(ui::tr(U"合計")).drawAt(9, {790, 193}, muted);
-    if (auto score = m->result_sum()) p.font(ui::tr(U"石差 ") + signed_value(*score)).drawAt(10, {790, 212}, orange);
-    else p.font(m->games() == 2 ? ui::tr(U"2局の石数") : ui::tr(U"石数")).drawAt(9, {790, 211}, muted);
+    p.bold(Format(shown_discs(*m, 0))).drawAt(p.font_size(29), {729, 197}, mint);
+    p.bold(Format(shown_discs(*m, 1))).drawAt(p.font_size(29), {850, 197}, blue);
+    p.font(ui::tr(U"合計")).drawAt(p.font_size(9), {790, 193}, muted);
+    if (auto score = m->result_sum()) p.font(ui::tr(U"石差 ") + signed_value(*score)).drawAt(p.font_size(10), {790, 212}, orange);
+    else p.font(m->games() == 2 ? ui::tr(U"2局の石数") : ui::tr(U"石数")).drawAt(p.font_size(9), {790, 211}, muted);
     if (m->games() == 2) { draw_board(*m, 0, {332, 250, 462, 482}); draw_board(*m, 1, {812, 250, 462, 482}); }
     else draw_board(*m, 0, {332, 250, 942, 482});
     draw_graph(*m, {332, 752, 942, 208});
@@ -311,7 +311,7 @@ inline void Application::draw_lobby() {
             }
             if (may_match() && p.button({1416, y + 10, 121, 36}, ui::tr(U"断る"), false, may_accept && r.to != "*")) send("t /os decline " + r.id);
         }
-        if (requests.empty()) p.font(ui::tr(U"対局募集なし")).drawAt(19, {951, 558}, muted);
+        if (requests.empty()) p.font(ui::tr(U"対局募集なし")).drawAt(p.font_size(19), {951, 558}, muted);
     } else {
         p.label(U"ID", 12, 355, 289, muted); p.label(ui::tr(U"プレイヤー"), 12, 442, 289, muted);
         p.label(ui::tr(U"タイプ"), 12, 866, 289, muted); p.label(ui::tr(U"モード"), 12, 1018, 289, muted); p.label(ui::tr(U"状態"), 12, 1172, 289, muted);
@@ -337,7 +337,7 @@ inline void Application::draw_lobby() {
                 if (m.watching) { choose_match(m.id); page = 0; } else watch(m.id);
             }
         }
-        if (ids.empty()) p.font(ui::tr(U"対局なし")).drawAt(19, {951, 558}, muted);
+        if (ids.empty()) p.font(ui::tr(U"対局なし")).drawAt(p.font_size(19), {951, 558}, muted);
     }
 }
 
@@ -357,8 +357,8 @@ inline void Application::draw_users() {
     for (int i = list_offset; i < int(users.size()) && i < list_offset + visible; ++i) {
         const auto& u = users[i]; double y = 283 + (i - list_offset) * row_height;
         p.clipped(str(u.name), 14, {362, y + 7, 186, 25});
-        p.mono(u.rating ? ToString(*u.rating, 1) : U"—").draw(13, Vec2{564, y + 8}, text);
-        p.mono(u.random_rating ? ToString(*u.random_rating, 1) : U"—").draw(13, Vec2{665, y + 8}, text);
+        p.mono(u.rating ? ToString(*u.rating, 1) : U"—").draw(p.font_size(13), Vec2{564, y + 8}, text);
+        p.mono(u.random_rating ? ToString(*u.random_rating, 1) : U"—").draw(p.font_size(13), Vec2{665, y + 8}, text);
         p.clipped(u.state == "+" ? ui::tr(U"対局募集中") : u.state == "x" ? ui::tr(U"離席") : ui::tr(U"受付停止"), 11, {771, y + 10, 145, 20}, u.state == "+" ? mint : muted);
         if (p.button({928, y + 2, 74, 28}, ui::tr(U"チャット"), false, true, mint, 12)) open_chat(u.name);
         if (p.button({1012, y + 2, 101, 28}, ui::tr(U"記録・成績"), false, true, mint, 12)) select_player(u.name);
@@ -367,7 +367,7 @@ inline void Application::draw_users() {
         if (may_match() && p.button({1356, y + 2, 189, 28}, ui::tr(U"対局を申し込む"), true, u.name != model.username && u.state != "x", mint, 12)) challenge(str(u.name));
         Line{362, y + row_height - 1, 1547, y + row_height - 1}.draw(1, line);
     }
-    if (users.empty()) p.font(ui::tr(U"プレイヤーなし")).drawAt(19, {951, 557}, muted);
+    if (users.empty()) p.font(ui::tr(U"プレイヤーなし")).drawAt(p.font_size(19), {951, 557}, muted);
 }
 
 inline void Application::draw_settings() {
@@ -387,19 +387,20 @@ inline void Application::draw_settings() {
     draw_language_picker({1165, 220, 381, 40});
     p.label(ui::tr(U"テーマ"), 18, 985, 285, text, true);
     draw_theme_picker({1165, 280, 381, 40});
-    if (p.toggle({985, 350, 561, 44}, ui::tr(U"合法手のヒントを表示"), legal_hints)) save_settings();
-    if (p.toggle({985, 404, 561, 44}, ui::tr(U"石が返るアニメーション"), animations)) save_settings();
-    if (p.toggle({985, 458, 561, 44}, ui::tr(U"石を置く音"), sound)) save_settings();
-    if (p.toggle({985, 512, 561, 44}, ui::tr(U"チャット受信時に音を鳴らす"), audio.chat_enabled)) save_settings();
-    p.label(ui::tr(U"音量"), 18, 985, 568, text, true);
-    p.mono(Format(audio.volume) + U"%").draw(18, Arg::topRight = Vec2{1546, 568}, text);
-    if (p.slider("audio-volume", {985, 598, 561, 34}, audio.volume)) save_settings();
-    if (p.button({985, 648, 280, 36}, ui::tr(U"通知音を試す"))) chat_sound.playOneShot(audio.gain());
+    if (p.toggle({985, 340, 561, 44}, ui::tr(U"小さい文字を大きくする"), p.enlarge_small_text)) save_settings();
+    if (p.toggle({985, 410, 561, 44}, ui::tr(U"合法手のヒントを表示"), legal_hints)) save_settings();
+    if (p.toggle({985, 464, 561, 44}, ui::tr(U"石が返るアニメーション"), animations)) save_settings();
+    if (p.toggle({985, 518, 561, 44}, ui::tr(U"石を置く音"), sound)) save_settings();
+    if (p.toggle({985, 572, 561, 44}, ui::tr(U"チャット受信時に音を鳴らす"), audio.chat_enabled)) save_settings();
+    p.label(ui::tr(U"音量"), 18, 985, 628, text, true);
+    p.mono(Format(audio.volume) + U"%").draw(p.font_size(18), Arg::topRight = Vec2{1546, 628}, text);
+    if (p.slider("audio-volume", {985, 658, 561, 34}, audio.volume)) save_settings();
+    if (p.button({985, 708, 280, 36}, ui::tr(U"通知音を試す"))) chat_sound.playOneShot(audio.gain());
     if (may_match()) {
-        if (p.toggle({985, 690, 561, 44}, ui::tr(U"対局申込を受け付ける"), open_for_matches)) send(std::string("t /os open ") + (open_for_matches ? "1" : "0"));
-        if (p.toggle({985, 744, 561, 44}, ui::tr(U"レーティング対局"), rated)) send(std::string("t /os rated ") + (rated ? "+" : "-"));
+        if (p.toggle({985, 750, 561, 44}, ui::tr(U"対局申込を受け付ける"), open_for_matches)) send(std::string("t /os open ") + (open_for_matches ? "1" : "0"));
+        if (p.toggle({985, 804, 561, 44}, ui::tr(U"レーティング対局"), rated)) send(std::string("t /os rated ") + (rated ? "+" : "-"));
     }
-    if (p.button({985, may_match() ? 818.0 : 690.0, 561, 44}, ui::tr(U"棋譜を開く"))) open_record();
+    if (p.button({985, may_match() ? 878.0 : 750.0, 561, 44}, ui::tr(U"棋譜を開く"))) open_record();
 
 }
 
@@ -428,7 +429,7 @@ inline void Application::draw_connection_form(bool startup) {
     if (p.button({1065, 658, 146, 38}, ui::tr(U"削除"), false, accounts.writable() && accounts.find(selected_account), red)) delete_account();
     if (startup) {
         if (connection) {
-            p.font(connection_status(connection->status())).draw(13, RectF{706, 719, 505, 40}, orange);
+            p.font(connection_status(connection->status())).draw(p.font_size(13), RectF{706, 719, 505, 40}, orange);
             if (p.button({706, 762, 150, 32}, ui::tr(U"接続を中止"))) cancel_connection();
         }
         if (p.button({706, 813, 150, 47}, ui::tr(U"棋譜を開く"))) open_record();
@@ -506,9 +507,9 @@ inline void Application::draw() {
     }
     draw_modal(); p.end();
     if (Scene::Time() < toast_until) {
-        double width = Min(1200.0, p.font(toast).region(16).w + 42);
+        double width = Min(1200.0, p.font(toast).region(p.font_size(16)).w + 42);
         RectF{762 - width / 2, 923, width, 40}.draw(background).drawFrame(1, mint);
-        p.font(toast).drawAt(16, {762, 942}, ui::text);
+        p.font(toast).drawAt(p.font_size(16), {762, 942}, ui::text);
     }
     if (modal.empty() && p.focus.empty() && page == 0) {
         if (auto* m = selected()) {
@@ -550,7 +551,7 @@ inline void Application::draw_inspector(Match& m) {
             const auto& move = g.moves[k]; RectF cell{1350.0 + col * 103, y, 94, 26};
             if (cursor_for(active_board) == move.ply) Line{cell.x, cell.bottomY(), cell.rightX(), cell.bottomY()}.draw(2, mint);
             p.label(str(coordinate(move.pass ? -1 : move.cell)), 15, cell.x + 4, y + 3, cursor_for(active_board) == move.ply ? mint : text, true);
-            if (move.has_eval) p.mono(signed_value(move.eval)).draw(10, Vec2{cell.x + 42, y + 7}, muted);
+            if (move.has_eval) p.mono(signed_value(move.eval)).draw(p.font_size(10), Vec2{cell.x + 42, y + 7}, muted);
             if (!p.blocked && cell.leftClicked()) seek(move.ply);
         }
     }
@@ -571,7 +572,7 @@ inline void Application::draw_inspector(Match& m) {
     chat_offset = chat_max - chat_top;
     int end = Max(0, int(chat.size()) - chat_offset), begin = Max(0, end - 4);
     for (int i = begin; i < end; ++i) {
-        p.font(str(chat[i])).draw(12, RectF{1315, double(chat_y), 229, 43}, i == begin ? mint : muted); chat_y += 43;
+        p.font(str(chat[i])).draw(p.font_size(12), RectF{1315, double(chat_y), 229, 43}, i == begin ? mint : muted); chat_y += 43;
     }
     p.label(ui::tr(U"宛先: /os（対局）・whisper・ユーザー名"), 10, 1314, 870, muted);
     p.input("chat-target", chat_target, {1313, 894, 88, 43}, ui::tr(U"宛先"));

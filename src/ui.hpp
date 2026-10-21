@@ -39,6 +39,9 @@ public:
     Font mono{FontMethod::MSDF, 48, FileSystem::PathAppend(FileSystem::GetFolderPath(SpecialFolder::SystemFonts), U"consola.ttf")};
     Font mono_jp{FontMethod::MSDF, 48, FileSystem::PathAppend(FileSystem::GetFolderPath(SpecialFolder::SystemFonts), U"msgothic.ttc")};
     Painter() { mono.addFallback(mono_jp); }
+    bool enlarge_small_text = false;
+    // Enlarge compact labels only; body text and headings retain their sizes.
+    double font_size(double standard) const { return standard * (enlarge_small_text && standard <= 14 ? 1.2 : 1.0); }
     std::string focus;
     std::string previous_focus;
     bool blocked = false, hit_field = false;
@@ -78,10 +81,11 @@ public:
         }
     }
     void label(const String& s, double size, double x, double y, ColorF color = text, bool strong = false) const {
-        (strong ? bold : font)(s).draw(size, Vec2{x, y}, color);
+        (strong ? bold : font)(s).draw(font_size(size), Vec2{x, y}, color);
     }
     void clipped(const String& s, double size, const RectF& region, ColorF color = text, bool strong = false, bool monospaced = false) const {
         String value = s;
+        size = font_size(size);
         const auto& f = monospaced ? mono : strong ? bold : font;
         if (f(value).region(size).w > region.w) {
             while (value.size() && f(value + U"…").region(size).w > region.w) value.pop_back();
@@ -96,7 +100,9 @@ public:
         const ColorF fill = accent == mint && r.w * r.h >= 2500 ? mint_fill : accent;
         ColorF bg = primary && enabled ? fill : raised;
         r.draw(bg).drawFrame(hover ? 1.5 : 1, enabled && (hover || primary) ? accent : line);
-        const double size = Min(text_size, text_size * (r.w - 16) / Max(1.0, font(title).region(text_size).w));
+        const double target_size = font_size(text_size);
+        const auto bounds = font(title).region(target_size);
+        const double size = Min({target_size, target_size * (r.w - 16) / Max(1.0, bounds.w), target_size * (r.h - 6) / Max(1.0, bounds.h)});
         font(title).drawAt(size, r.center(), !enabled ? muted : primary ? on_accent : text);
         if (hover) Cursor::RequestStyle(CursorStyle::Hand);
         return enabled && r.leftClicked();
@@ -196,7 +202,7 @@ public:
         return submit;
     }
     void tag(String title, Vec2 pos, ColorF color = mint) const {
-        double width = font(title).region(12).w + 18;
+        double width = font(title).region(font_size(12)).w + 18;
         RectF{pos.x, pos.y, width, 24}.draw(background);
         label(title, 12, pos.x + 9, pos.y + 3, color);
     }
