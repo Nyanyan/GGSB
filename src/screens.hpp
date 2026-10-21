@@ -99,7 +99,7 @@ inline void Application::draw_board(Match& m, int sub, RectF region) {
     const double column = (region.w - 60) / 2;
     for (int c = 0; c < 2; ++c) {
         double x = region.x + 20 + c * (column + 20), y = region.y + 45;
-        Circle{x + 8, y + 14, 7}.draw(c == BLACK ? ColorF{0.02} : ColorF{0.92}).drawFrame(1, c == BLACK ? line : ColorF{0.95});
+        Circle{x + 8, y + 14, 7}.draw(c == BLACK ? ColorF{0.02} : ColorF{0.92}).drawFrame(1, c == BLACK ? line : white_stone_outline);
         const auto name = g.name[c].empty() ? m.player[c ^ sub] : g.name[c];
         p.clipped(str(name), 16, {x + 24, y, column - 24, 27}, text, true);
         const auto value = g.evaluation(c, shown_ply);
@@ -145,12 +145,12 @@ inline void Application::draw_board(Match& m, int sub, RectF region) {
             Ellipse{center.movedBy(1, 2), rx + 1, cell * 0.4}.draw(ColorF{0.01, 0.06, 0.045, 0.6});
             Ellipse{center, rx, cell * 0.39}.draw(color == BLACK ? ColorF{0.035, 0.055, 0.065} : ColorF{0.91, 0.94, 0.91});
             Ellipse{center.movedBy(-rx * 0.17, -cell * 0.06), rx * 0.82, cell * 0.30}.draw(color == BLACK ? ColorF{0.068, 0.093, 0.105} : ColorF{0.98, 1.0, 0.98});
-            if (i == last) Circle{center, 3}.draw(color == BLACK ? mint : ColorF{0.03, 0.35, 0.25});
+            if (i == last) Circle{center, 3}.draw(color == BLACK ? board_hint : ColorF{0.03, 0.35, 0.25});
         } else if (g.active && (legal & ggs::cell_bit(i))) {
-            Circle{center, cell * 0.09}.draw(ColorF{mint, can_play ? 0.6 : 0.24});
+            Circle{center, cell * 0.09}.draw(ColorF{board_hint, can_play ? 0.6 : 0.24});
         }
         if (can_play && flips(position, i) && !p.blocked && square.mouseOver()) {
-            square.draw(ColorF{mint, 0.10}); Circle{center, cell * 0.39}.drawFrame(1.5, ColorF{mint, 0.7}); Cursor::RequestStyle(CursorStyle::Hand);
+            square.draw(ColorF{board_hint, 0.10}); Circle{center, cell * 0.39}.drawFrame(1.5, ColorF{board_hint, 0.7}); Cursor::RequestStyle(CursorStyle::Hand);
             if (square.leftClicked()) { active_board = sub; play_cell(m, sub, i); }
         }
     }
@@ -158,7 +158,7 @@ inline void Application::draw_board(Match& m, int sub, RectF region) {
     double bottom = region.bottomY() - 28;
     Circle{region.x + 26, bottom + 12, 6}.draw(ColorF{0.025}).drawFrame(1, muted);
     p.label(Format(disc_count(position, BLACK)), 15, region.x + 39, bottom, text);
-    Circle{region.x + 79, bottom + 12, 6}.draw(ColorF{0.94});
+    Circle{region.x + 79, bottom + 12, 6}.draw(ColorF{0.94}).drawFrame(1, white_stone_outline);
     p.label(Format(disc_count(position, WHITE)), 15, region.x + 92, bottom, text);
     p.label(ui::tr(U"空き ") + Format(64 - std::popcount(position.black | position.white)), 11, region.rightX() - 75, bottom + 3, muted);
     if (can_play && !legal_moves(g.pos)) if (p.button({region.center().x - 51, bottom - 4, 102, 29}, ui::tr(U"パス"), true)) play_cell(m, sub, -1);
@@ -384,15 +384,17 @@ inline void Application::draw_settings() {
     p.clipped(connection ? connection_status(connection->status()) : ui::tr(U"未接続"), 13, {360, 703, 544, 32}, online() ? mint : muted);
     p.card({958, 143, 616, 794}); p.label(ui::tr(U"表示・対局設定"), 23, 985, 166, text, true);
     p.label(ui::tr(U"言語"), 18, 985, 225, text, true);
-    draw_language_picker({985, 262, 561, 40});
-    if (p.toggle({985, 335, 561, 44}, ui::tr(U"合法手のヒントを表示"), legal_hints)) save_settings();
-    if (p.toggle({985, 389, 561, 44}, ui::tr(U"石が返るアニメーション"), animations)) save_settings();
-    if (p.toggle({985, 443, 561, 44}, ui::tr(U"石を置く音"), sound)) save_settings();
-    if (p.toggle({985, 497, 561, 44}, ui::tr(U"チャット受信時に音を鳴らす"), audio.chat_enabled)) save_settings();
-    p.label(ui::tr(U"音量"), 18, 985, 553, text, true);
-    p.mono(Format(audio.volume) + U"%").draw(18, Arg::topRight = Vec2{1546, 553}, text);
-    if (p.slider("audio-volume", {985, 583, 561, 34}, audio.volume)) save_settings();
-    if (p.button({985, 633, 280, 36}, ui::tr(U"通知音を試す"))) chat_sound.playOneShot(audio.gain());
+    draw_language_picker({1165, 220, 381, 40});
+    p.label(ui::tr(U"テーマ"), 18, 985, 285, text, true);
+    draw_theme_picker({1165, 280, 381, 40});
+    if (p.toggle({985, 350, 561, 44}, ui::tr(U"合法手のヒントを表示"), legal_hints)) save_settings();
+    if (p.toggle({985, 404, 561, 44}, ui::tr(U"石が返るアニメーション"), animations)) save_settings();
+    if (p.toggle({985, 458, 561, 44}, ui::tr(U"石を置く音"), sound)) save_settings();
+    if (p.toggle({985, 512, 561, 44}, ui::tr(U"チャット受信時に音を鳴らす"), audio.chat_enabled)) save_settings();
+    p.label(ui::tr(U"音量"), 18, 985, 568, text, true);
+    p.mono(Format(audio.volume) + U"%").draw(18, Arg::topRight = Vec2{1546, 568}, text);
+    if (p.slider("audio-volume", {985, 598, 561, 34}, audio.volume)) save_settings();
+    if (p.button({985, 648, 280, 36}, ui::tr(U"通知音を試す"))) chat_sound.playOneShot(audio.gain());
     if (may_match()) {
         if (p.toggle({985, 690, 561, 44}, ui::tr(U"対局申込を受け付ける"), open_for_matches)) send(std::string("t /os open ") + (open_for_matches ? "1" : "0"));
         if (p.toggle({985, 744, 561, 44}, ui::tr(U"レーティング対局"), rated)) send(std::string("t /os rated ") + (rated ? "+" : "-"));
@@ -411,6 +413,8 @@ inline void Application::draw_connection_form(bool startup) {
         p.tag(ui::tr(U"未接続"), {1110, 158}, muted);
     }
     draw_language_picker({706, 183, 340, 30});
+    p.label(ui::tr(U"テーマ"), 12, 387, 805, muted);
+    draw_theme_picker({451, 797, 199, 32});
     const Transformer2D compact{Mat3x2::Translate(0, -30), TransformCursor::Yes};
     Line{674, 244, 674, 857}.draw(1, line);
     draw_account_picker({387, 248, 263, 595});
@@ -437,7 +441,7 @@ inline void Application::draw_connection_form(bool startup) {
 inline void Application::draw_modal() {
     using namespace ui;
     if (modal.empty()) return;
-    RectF{0, 0, 1524, 976}.draw(ColorF{0.01, 0.025, 0.04, 0.83}); p.blocked = false;
+    RectF{0, 0, 1524, 976}.draw(overlay); p.blocked = false;
     if (modal == "connect") {
         draw_connection_form(false);
         if (KeyEscape.down()) modal.clear();

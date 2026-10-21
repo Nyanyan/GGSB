@@ -2,6 +2,7 @@
 #include "src/screens.hpp"
 #include "src/preview.hpp"
 #include "tests/gui_input_history.hpp"
+#include "tests/gui_theme.hpp"
 
 void Main() {
     FileSystem::ChangeCurrentDirectory(FileSystem::ParentPath(FileSystem::ModulePath()));
@@ -94,11 +95,14 @@ void Main() {
         else if (args[i] == U"--graph-board") app.graph_board = Clamp(ParseOr<int>(next(), -1), -1, 1);
         else if (args[i] == U"--single") app.choose_match(".119");
         else if (args[i] == U"--language") app.set_language(next(), false);
+        else if (args[i] == U"--theme") app.set_theme(next(), false);
         else if (args[i] == U"--mute") { app.sound = false; app.audio.chat_enabled = false; }
         else if (args[i] == U"--demo-accounts") { app.seed_account_preview(); app.show_connection(); }
     }
     if (!verification_path.empty()) {
-        String result; bool success = app.verify_offline_workflow(result);
+        String result;
+        bool success = ggsb::verify_theme_workflow(app, result) && app.verify_offline_workflow(result);
+        if (success) result += U", dark/light theme switching, restart persistence, invalid setting fallback and text/button contrast";
         TextWriter writer{verification_path, TextEncoding::UTF8_NO_BOM}; writer.writeln(result);
         if (!success) return;
     }

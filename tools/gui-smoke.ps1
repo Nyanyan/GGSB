@@ -1,3 +1,4 @@
+param([switch]$CaptureThemes)
 $ErrorActionPreference = 'Stop'
 $workspacePath = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $resultPath = Join-Path $workspacePath 'build\gui-smoke.txt'
@@ -37,6 +38,30 @@ foreach ($case in $audioCases) {
     Write-Output ($case.Name + ': ' + $audioResult.Trim())
 }
 if ($audioPeaks['chat-quiet'] -ge $audioPeaks['chat'] * 0.5 -or $audioPeaks['chat-quiet'] -le $audioPeaks['chat'] * 0.1) { throw 'Volume adjustment did not reduce the notification amplitude.' }
+if ($CaptureThemes) {
+    $previews = @(
+        @{Theme='dark'; Screen='settings'; Language='ja'},
+        @{Theme='light'; Screen='settings'; Language='ja'},
+        @{Theme='light'; Screen='settings'; Language='en'},
+        @{Theme='light'; Screen='connect'; Language='ja'},
+        @{Theme='light'; Screen='connect'; Language='en'},
+        @{Theme='light'; Screen='arena'; Language='en'},
+        @{Theme='light'; Screen='multi'; Language='en'},
+        @{Theme='light'; Screen='console'; Language='en'},
+        @{Theme='light'; Screen='chat'; Language='en'},
+        @{Theme='light'; Screen='challenge'; Language='ja'},
+        @{Theme='light'; Screen='records'; Language='en'}
+    )
+    foreach ($preview in $previews) {
+        $capturePath = Join-Path $workspacePath ('build\theme-' + $preview.Theme + '-' + $preview.Screen + '-' + $preview.Language + '.png')
+        if (Test-Path -LiteralPath $capturePath) { Remove-Item -LiteralPath $capturePath }
+        $fixtureArguments = if ($preview.Screen -eq 'console') { @('--console-preview') } else { @('--demo') }
+        $captureArguments = @($fixtureArguments) + @('--mute','--theme',$preview.Theme,'--language',$preview.Language,'--screen',$preview.Screen,'--capture',('"' + $capturePath + '"'),'--capture-at','1','--quit-after','2')
+        $previewProcess = Start-Process -FilePath $executablePath -WorkingDirectory $runtimePath -ArgumentList $captureArguments -WindowStyle Hidden -PassThru
+        if (-not $previewProcess.WaitForExit(20000) -or $previewProcess.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $capturePath)) { throw ('Theme preview failed: ' + $capturePath) }
+        Write-Output $capturePath
+    }
+}
 $settingsHashAfter = if (Test-Path -LiteralPath $settingsPath) { (Get-FileHash -LiteralPath $settingsPath -Algorithm SHA256).Hash } else { $null }
 if ($settingsHashAfter -ne $settingsHash) { throw 'GUIテストが普段の接続設定を変更しました。' }
 Write-Output $result

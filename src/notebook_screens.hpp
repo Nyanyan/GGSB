@@ -41,7 +41,7 @@ inline void Application::draw_mosaic() {
                 Vec2 center{board.x + (cell % 8 + 0.5) * cell_size, board.y + (cell / 8 + 0.5) * cell_size};
                 Circle{center + Vec2{1, 1.4}, cell_size * 0.40}.draw(ColorF{0.015, 0.07, 0.06, 0.7});
                 Circle{center, cell_size * 0.39}.draw(c == BLACK ? ColorF{0.025, 0.035, 0.042} : ColorF{0.88, 0.94, 0.95}).drawFrame(0.7, c == BLACK ? ColorF{0.17, 0.23, 0.26} : ColorF{0.96});
-                if (cell == g.last_cell) Circle{center, 2}.draw(c == BLACK ? mint : ColorF{0.12, 0.40, 0.31});
+                if (cell == g.last_cell) Circle{center, 2}.draw(c == BLACK ? board_hint : ColorF{0.12, 0.40, 0.31});
             }
             if (!g.active) p.font(ui::tr(U"受信中")).drawAt(16, board.center(), mint);
             p.label(U"● " + Format(disc_count(g.pos, BLACK)) + U"  ○ " + Format(disc_count(g.pos, WHITE)), 11, board.x, board.bottomY() + 5, text);

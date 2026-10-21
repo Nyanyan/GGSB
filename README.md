@@ -24,6 +24,8 @@ Unregistered accounts can watch matches. The app does not show an error just bec
 
 Display settings and the last server address are saved in `App/settings.ini`. You can select an ID and password from the accounts saved on the connection screen.
 
+Dark is the default theme. Select **Dark** or **Light** under **Theme** in Settings or on the connection screen. The change takes effect immediately and is remembered the next time you start the app.
+
 The default display language is English. Switch languages using **English** or **日本語** on the connection screen, or the language field in Settings after login. Your choice is remembered on the next launch. The language pack sources are `assets/languages/en.json` and `assets/languages/ja.json`; setup and build copy them to `App/languages/`. To change the wording, edit the values under `strings` while keeping the keys. Player names, chat messages and server responses are not translated.
 
 Lists of players, matches, requests, saved accounts, tracking sessions, statistics, moves and chat messages have scrollbars. Use the mouse wheel over a list, drag its scrollbar, or click an empty part of the scrollbar track to move through it.
@@ -187,6 +189,7 @@ Run these commands in an environment with MinGW's `g++`:
 ./tools/test.ps1 -Network
 ./tools/test.ps1 -ExistingLog "Path to a GGS_Stream connection log"
 ./tools/gui-smoke.ps1
+./tools/gui-smoke.ps1 -CaptureThemes
 ```
 
 Core tests cover the rules, passes, history reconstruction, synchro evaluations, shared graph ranges, winner detection, branching, GGF saving and loading, and command formats. They also verify move restrictions based on registration status, scrollbar limits and changes in list size, fractional wheel input, console selection and scrolling, scroll-position preservation during incoming responses, win rates, mean disc margins, tracking sessions, duplicate notifications, history recovery and record restoration. Account tests cover Windows DPAPI encryption and decryption, adding, updating and deleting accounts, reloading, protection of damaged files, and handling of write failures.
@@ -195,7 +198,7 @@ Network tests use a mock server at 127.0.0.1 to verify registered and unregister
 
 GUI tests copy only the executable and runtime files into a dedicated folder under `build/`. They do not load your usual `App/settings.ini`, saved accounts or game records, and they check afterward that your connection settings have not changed.
 
-The GUI smoke test also verifies closing and reopening chats, retaining drafts, stopping and restarting watching, and ignoring delayed updates to stopped watches. Audio checks measure placement and notification output, reduced volume, zero volume, per-conversation muting and the global chat setting. Restart checks verify that volume and conversation preferences are restored.
+The GUI smoke test also verifies closing and reopening chats, retaining drafts, stopping and restarting watching, and ignoring delayed updates to stopped watches. Audio checks measure placement and notification output, reduced volume, zero volume, per-conversation muting and the global chat setting. Restart checks verify that volume and conversation preferences are restored. Theme checks cover the dark default, switching, persistence, invalid settings and text/button contrast. Add `-CaptureThemes` to save screen previews for both themes under `build/`. Use `--theme dark` / `light` to preview a theme without saving it.
 
 With Python 3, run `python tests/gui_session_smoke.py` to check registered and unregistered login in the actual app. This test connects only to a local mock server and verifies the lobby after login, both ratings, the destinations of profile and game-statistics queries, private and public chat sending and receiving, visibility of playing controls, and the absence of playing-setting commands for unregistered accounts.
 
@@ -264,6 +267,8 @@ Siv3D 0.6.16で作った、GGS（Generic Game Server）用のオセロGUIです�
 未登録アカウントでも観戦できます。未登録であることを理由にエラーは表示しません。対局申込・受諾・対戦設定などの操作は、登録済みアカウントでログインしたときに表示します。
 
 表示設定と前回の接続先は `App/settings.ini` に保存します。IDとパスワードは、接続画面で保存したアカウントから選べます。
+
+テーマの既定はダークです。設定画面または接続画面の「テーマ」で「ダーク」「ライト」を選ぶと、すぐに配色が切り替わります。選択は保存され、次回の起動にも引き継ぎます。
 
 表示言語の既定は英語です。接続画面の「English」「日本語」、またはログイン後の設定画面の言語欄で切り替えられます。選択した言語は次回の起動にも引き継ぎます。言語パックのソースは `assets/languages/en.json` と `assets/languages/ja.json` です。セットアップとビルド時に `App/languages/` へコピーします。`strings` 内のキーを維持して値を編集すると、表示文言を変更できます。プレイヤー名・チャット本文・サーバーの応答は翻訳しません。
 
@@ -435,6 +440,8 @@ MinGWの `g++` がある環境で実行できます。
 通信テストは127.0.0.1の模擬サーバーを使い、登録済み・未登録のログイン、登録状態の判定、通常・ランダムのレーティングの受信、チャンネル参加、分割受信・切断・再接続・認証失敗・パスワードの伏せ字・終了処理を検証します。GUIテストは実際のSiv3Dアプリで、起動時の接続画面・デモの停止・未接続時の対戦操作の制限・言語の切り替えと保存・コンソールの範囲選択・フォントの読込、棋譜の書き出し・2局の読み込み・再生時の着手禁止・終局通知からの自動棋譜保存と集計の復元に加え、アカウントの保存・選択・再読み込み・削除を確認します。`python tests/language_tests.py` で両言語パックのキーと翻訳の不足を確認できます。
 
 GUIテストは実行ファイルとランタイムだけを `build/` 内の専用フォルダーへコピーして実行します。普段使う `App/settings.ini`、保存済みアカウント、対局記録をテストに読み込まず、実行後にも接続設定が変わっていないことを確認します。
+
+テーマのテストでは、ダークの初期設定、切り替えと保存、不正な設定値からの復帰、文字とボタンのコントラストを確認します。`./tools/gui-smoke.ps1 -CaptureThemes` で両テーマの画面画像を `build/` に保存できます。起動オプションの `--theme dark` / `light` は、設定を保存せずに配色を確認するときに使えます。
 
 GUIの動作確認では、チャットを閉じて開き直す操作、下書きの保持、観戦の終了と再開も検証します。観戦終了後に遅れて届いた盤面通知で観戦が再開しないことも確認します。音の検証では、着手音と通知音の出力、音量を下げた場合と0％にした場合、会話ごとのミュートと全体のチャット通知設定を確認します。また、再起動後に音量と会話ごとの設定を復元できることも検証します。
 
