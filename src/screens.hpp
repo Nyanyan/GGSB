@@ -119,12 +119,12 @@ inline void Application::draw_board(Match& m, int sub, RectF region) {
     double size = Min(region.h - 190, region.w - 80);
     RectF board{region.center().x - size / 2, region.y + 154, size, size};
     const double cell = size / 8;
-    board.draw(ColorF{0.073, 0.225, 0.189}).drawFrame(1, ColorF{0.19, 0.37, 0.32});
+    board.draw(board_fill).drawFrame(1, board_line);
     uint64_t legal = legal_hints && g.active && !g.finished ? legal_moves(position) : 0;
     const bool can_play = model.may_play(m, sub, online(), cursor()) && !pending_moves.count(g.id) && m.clock_running(sub);
     for (int j = 0; j <= 8; ++j) {
-        Line{board.x + j * cell, board.y, board.x + j * cell, board.bottomY()}.draw(1, ColorF{0.19, 0.37, 0.32, 0.7});
-        Line{board.x, board.y + j * cell, board.rightX(), board.y + j * cell}.draw(1, ColorF{0.19, 0.37, 0.32, 0.7});
+        Line{board.x + j * cell, board.y, board.x + j * cell, board.bottomY()}.draw(1, ColorF{board_line, 0.7});
+        Line{board.x, board.y + j * cell, board.rightX(), board.y + j * cell}.draw(1, ColorF{board_line, 0.7});
     }
     for (int i = 0; i < 8; ++i) {
         int coord = flip_board ? 7 - i : i;
@@ -145,9 +145,9 @@ inline void Application::draw_board(Match& m, int sub, RectF region) {
             Ellipse{center.movedBy(1, 2), rx + 1, cell * 0.4}.draw(ColorF{0.01, 0.06, 0.045, 0.6});
             Ellipse{center, rx, cell * 0.39}.draw(color == BLACK ? ColorF{0.035, 0.055, 0.065} : ColorF{0.91, 0.94, 0.91});
             Ellipse{center.movedBy(-rx * 0.17, -cell * 0.06), rx * 0.82, cell * 0.30}.draw(color == BLACK ? ColorF{0.068, 0.093, 0.105} : ColorF{0.98, 1.0, 0.98});
-            if (i == last) Circle{center, 3}.draw(color == BLACK ? board_hint : ColorF{0.03, 0.35, 0.25});
+            if (i == last) Circle{center, 3}.draw(color == BLACK ? board_marker : ColorF{0.03, 0.35, 0.25});
         } else if (g.active && (legal & ggs::cell_bit(i))) {
-            Circle{center, cell * 0.09}.draw(ColorF{board_hint, can_play ? 0.6 : 0.24});
+            Circle{center, cell * 0.09}.draw(ColorF{board_hint, can_play ? 0.6 : current_theme == Theme::Light ? 0.5 : 0.24});
         }
         if (can_play && flips(position, i) && !p.blocked && square.mouseOver()) {
             square.draw(ColorF{board_hint, 0.10}); Circle{center, cell * 0.39}.drawFrame(1.5, ColorF{board_hint, 0.7}); Cursor::RequestStyle(CursorStyle::Hand);

@@ -16,6 +16,7 @@ inline bool verify_theme_workflow(Application& app, String& result) {
         Application reopened;
         const auto& expected = name == U"light" ? light_colors : dark_colors;
         if (theme_name() != name || background != expected.background || text != expected.text || mint != expected.mint
+            || board_fill != expected.board_fill || board_line != expected.board_line || mini_grid != expected.mini_grid || board_hint != expected.board_hint
             || Scene::GetBackground() != expected.background) return fail(U"palette and scene restored after restart");
         if (language_pack().selected() != U"ja" || reopened.audio.volume != 37 || reopened.legal_hints != app.legal_hints)
             return fail(U"other preferences preserved");
@@ -31,6 +32,7 @@ inline bool verify_theme_workflow(Application& app, String& result) {
             if (contrast(ink, background) < 4.5 || contrast(ink, panel) < 4.5) return fail(U"text contrast");
         for (const auto& fill : {mint, mint_fill, blue, orange, red})
             if (contrast(on_accent, fill) < 4.5) return fail(U"primary button contrast");
+        if (contrast(board_hint, board_fill) < 4.5) return fail(U"board label contrast");
     }
     INI invalid{U"settings.ini"};
     invalid.write(U"view", U"theme", U"unknown");

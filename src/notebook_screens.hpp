@@ -33,17 +33,17 @@ inline void Application::draw_mosaic() {
                 p.mono(value ? signed_value(*value) : U"—").draw(p.font_size(12), Arg::topRight = Vec2{board.rightX(), y}, text);
                 if (g.active && !g.finished && g.pos.to_move == c && m.clock_running(sub)) Line{board.x, y + 19, board.rightX(), y + 19}.draw(1, mint);
             }
-            board.draw(ColorF{0.073, 0.225, 0.189}).drawFrame(1, line);
+            board.draw(board_fill).drawFrame(1, line);
             const double cell_size = board.w / 8;
-            for (int k = 1; k < 8; ++k) { Line{board.x + k * cell_size, board.y, board.x + k * cell_size, board.bottomY()}.draw(1, ColorF{0.025, 0.12, 0.11}); Line{board.x, board.y + k * cell_size, board.rightX(), board.y + k * cell_size}.draw(1, ColorF{0.025, 0.12, 0.11}); }
+            for (int k = 1; k < 8; ++k) { Line{board.x + k * cell_size, board.y, board.x + k * cell_size, board.bottomY()}.draw(1, mini_grid); Line{board.x, board.y + k * cell_size, board.rightX(), board.y + k * cell_size}.draw(1, mini_grid); }
             for (int cell = 0; cell < 64; ++cell) {
                 int c = at(g.pos, cell); if (c < 0) continue;
                 Vec2 center{board.x + (cell % 8 + 0.5) * cell_size, board.y + (cell / 8 + 0.5) * cell_size};
                 Circle{center + Vec2{1, 1.4}, cell_size * 0.40}.draw(ColorF{0.015, 0.07, 0.06, 0.7});
                 Circle{center, cell_size * 0.39}.draw(c == BLACK ? ColorF{0.025, 0.035, 0.042} : ColorF{0.88, 0.94, 0.95}).drawFrame(0.7, c == BLACK ? ColorF{0.17, 0.23, 0.26} : ColorF{0.96});
-                if (cell == g.last_cell) Circle{center, 2}.draw(c == BLACK ? board_hint : ColorF{0.12, 0.40, 0.31});
+                if (cell == g.last_cell) Circle{center, 2}.draw(c == BLACK ? board_marker : ColorF{0.12, 0.40, 0.31});
             }
-            if (!g.active) p.font(ui::tr(U"受信中")).drawAt(p.font_size(16), board.center(), mint);
+            if (!g.active) p.font(ui::tr(U"受信中")).drawAt(p.font_size(16), board.center(), board_hint);
             p.label(U"● " + Format(disc_count(g.pos, BLACK)) + U"  ○ " + Format(disc_count(g.pos, WHITE)), 11, board.x, board.bottomY() + 5, text);
             p.label(ui::tr(U"空き ") + Format(64 - std::popcount(g.pos.black | g.pos.white)), 10, board.rightX() - 48, board.bottomY() + 6, muted);
         }
