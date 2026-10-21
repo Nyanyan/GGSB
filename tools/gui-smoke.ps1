@@ -1,4 +1,4 @@
-param([switch]$CaptureThemes, [ValidateSet('standard','large')][string]$TextSize = 'standard', [string[]]$CaptureScreens)
+param([switch]$CaptureThemes, [ValidateSet('standard','large')][string]$TextSize = 'standard', [string[]]$CaptureScreens, [switch]$CompareTextSizes)
 $ErrorActionPreference = 'Stop'
 $workspacePath = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $resultPath = Join-Path $workspacePath 'build\gui-smoke.txt'
@@ -48,21 +48,27 @@ if ($CaptureThemes) {
         @{Theme='light'; Screen='arena'; Language='en'},
         @{Theme='light'; Screen='multi'; Language='en'},
         @{Theme='light'; Screen='players'; Language='ja'},
+        @{Theme='dark'; Screen='players'; Language='ja'},
+        @{Theme='light'; Screen='players'; Language='en'},
+        @{Theme='dark'; Screen='players'; Language='en'},
         @{Theme='light'; Screen='console'; Language='en'},
         @{Theme='light'; Screen='chat'; Language='en'},
         @{Theme='light'; Screen='challenge'; Language='ja'},
         @{Theme='light'; Screen='records'; Language='en'}
     )
     if ($CaptureScreens) { $previews = @($previews | Where-Object { $_.Screen -in $CaptureScreens }) }
+    $previewTextSizes = if ($CompareTextSizes) { @('standard', 'large') } else { @($TextSize) }
     foreach ($preview in $previews) {
-        $sizeSuffix = if ($TextSize -eq 'large') { '-large-text' } else { '' }
-        $capturePath = Join-Path $workspacePath ('build\theme-' + $preview.Theme + '-' + $preview.Screen + '-' + $preview.Language + $sizeSuffix + '.png')
-        if (Test-Path -LiteralPath $capturePath) { Remove-Item -LiteralPath $capturePath }
-        $fixtureArguments = if ($preview.Screen -eq 'console') { @('--console-preview') } elseif ($preview.Screen -eq 'players') { @('--scroll-preview') } else { @('--demo') }
-        $captureArguments = @($fixtureArguments) + @('--mute','--theme',$preview.Theme,'--text-size',$TextSize,'--language',$preview.Language,'--screen',$preview.Screen,'--capture',('"' + $capturePath + '"'),'--capture-at','1','--quit-after','2')
-        $previewProcess = Start-Process -FilePath $executablePath -WorkingDirectory $runtimePath -ArgumentList $captureArguments -WindowStyle Hidden -PassThru
-        if (-not $previewProcess.WaitForExit(20000) -or $previewProcess.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $capturePath)) { throw ('Theme preview failed: ' + $capturePath) }
-        Write-Output $capturePath
+        foreach ($previewTextSize in $previewTextSizes) {
+            $sizeSuffix = if ($previewTextSize -eq 'large') { '-large-text' } else { '' }
+            $capturePath = Join-Path $workspacePath ('build\theme-' + $preview.Theme + '-' + $preview.Screen + '-' + $preview.Language + $sizeSuffix + '.png')
+            if (Test-Path -LiteralPath $capturePath) { Remove-Item -LiteralPath $capturePath }
+            $fixtureArguments = if ($preview.Screen -eq 'console') { @('--console-preview') } elseif ($preview.Screen -eq 'players') { @('--scroll-preview') } else { @('--demo') }
+            $captureArguments = @($fixtureArguments) + @('--mute','--theme',$preview.Theme,'--text-size',$previewTextSize,'--language',$preview.Language,'--screen',$preview.Screen,'--capture',('"' + $capturePath + '"'),'--capture-at','1','--quit-after','2')
+            $previewProcess = Start-Process -FilePath $executablePath -WorkingDirectory $runtimePath -ArgumentList $captureArguments -WindowStyle Hidden -PassThru
+            if (-not $previewProcess.WaitForExit(20000) -or $previewProcess.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $capturePath)) { throw ('Theme preview failed: ' + $capturePath) }
+            Write-Output $capturePath
+        }
     }
 }
 $settingsHashAfter = if (Test-Path -LiteralPath $settingsPath) { (Get-FileHash -LiteralPath $settingsPath -Algorithm SHA256).Hash } else { $null }

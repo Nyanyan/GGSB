@@ -26,7 +26,7 @@ Display settings and the last server address are saved in `App/settings.ini`. Yo
 
 Dark is the default theme. Select **Dark** or **Light** under **Theme** in Settings or on the connection screen. The change takes effect immediately and is remembered the next time you start the app.
 
-Enable **Enlarge small text** in Settings to enlarge compact labels and supporting information by 20%. Body text, input fields and headings keep their current size. The setting takes effect immediately and is saved for the next launch.
+Enable **Enlarge small text** in Settings to enlarge compact labels and supporting information by 30%. Player names, ratings and status labels in the player list are included. Body text, input fields and headings keep their current size. The setting takes effect immediately and is saved for the next launch.
 
 The default display language is English. Switch languages using **English** or **日本語** on the connection screen, or the language field in Settings after login. Your choice is remembered on the next launch. The language pack sources are `assets/languages/en.json` and `assets/languages/ja.json`; setup and build copy them to `App/languages/`. To change the wording, edit the values under `strings` while keeping the keys. Player names, chat messages and server responses are not translated.
 
@@ -273,7 +273,7 @@ Siv3D 0.6.16で作った、GGS（Generic Game Server）用のオセロGUIです�
 
 テーマの既定はダークです。設定画面または接続画面の「テーマ」で「ダーク」「ライト」を選ぶと、すぐに配色が切り替わります。選択は保存され、次回の起動にも引き継ぎます。
 
-設定画面の「小さい文字を大きくする」をオンにすると、補助情報などの小さい文字だけを20%拡大します。本文や入力欄、見出しのサイズはそのままです。設定はすぐに反映され、次回の起動にも引き継ぎます。
+設定画面の「小さい文字を大きくする」をオンにすると、補助情報などの小さい文字だけを30%拡大します。プレイヤー一覧の名前・レーティング・状態表示も対象です。本文や入力欄、見出しのサイズはそのままです。設定はすぐに反映され、次回の起動にも引き継ぎます。
 
 表示言語の既定は英語です。接続画面の「English」「日本語」、またはログイン後の設定画面の言語欄で切り替えられます。選択した言語は次回の起動にも引き継ぎます。言語パックのソースは `assets/languages/en.json` と `assets/languages/ja.json` です。セットアップとビルド時に `App/languages/` へコピーします。`strings` 内のキーを維持して値を編集すると、表示文言を変更できます。プレイヤー名・チャット本文・サーバーの応答は翻訳しません。
 

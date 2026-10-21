@@ -41,7 +41,7 @@ public:
     Painter() { mono.addFallback(mono_jp); }
     bool enlarge_small_text = false;
     // Enlarge compact labels only; body text and headings retain their sizes.
-    double font_size(double standard) const { return standard * (enlarge_small_text && standard <= 14 ? 1.2 : 1.0); }
+    double font_size(double standard) const { return standard * (enlarge_small_text && standard <= 14 ? 1.3 : 1.0); }
     std::string focus;
     std::string previous_focus;
     bool blocked = false, hit_field = false;
@@ -94,15 +94,20 @@ public:
         f(value).draw(size, region.pos, color);
     }
     void card(RectF r, double = 0) const { r.draw(panel); }
+    double button_font_size(RectF r, const String& title, double standard_size = 16) const {
+        const double target_size = font_size(standard_size);
+        const auto bounds = font(title).region(target_size);
+        const bool enlarged = enlarge_small_text && standard_size <= 14;
+        const double horizontal_padding = enlarged ? 10 : 16, vertical_padding = enlarged ? 4 : 6;
+        return Min({target_size, target_size * (r.w - horizontal_padding) / Max(1.0, bounds.w), target_size * (r.h - vertical_padding) / Max(1.0, bounds.h)});
+    }
     bool button(RectF r, String title, bool primary = false, bool enabled = true, ColorF accent = mint, double text_size = 16) const {
         enabled = enabled && !blocked;
         const bool hover = enabled && r.mouseOver();
         const ColorF fill = accent == mint && r.w * r.h >= 2500 ? mint_fill : accent;
         ColorF bg = primary && enabled ? fill : raised;
         r.draw(bg).drawFrame(hover ? 1.5 : 1, enabled && (hover || primary) ? accent : line);
-        const double target_size = font_size(text_size);
-        const auto bounds = font(title).region(target_size);
-        const double size = Min({target_size, target_size * (r.w - 16) / Max(1.0, bounds.w), target_size * (r.h - 6) / Max(1.0, bounds.h)});
+        const double size = button_font_size(r, title, text_size);
         font(title).drawAt(size, r.center(), !enabled ? muted : primary ? on_accent : text);
         if (hover) Cursor::RequestStyle(CursorStyle::Hand);
         return enabled && r.leftClicked();
