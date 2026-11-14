@@ -250,7 +250,7 @@ inline bool parse_clock_line(const std::string& line, ClockInfo& out) {
     if (!std::regex_search(line, m, re)) return false;
     ClockInfo res;
     res.name = m[1].str();
-    parse_double(m[2].str(), res.rating);
+    if (!parse_double(m[2].str(), res.rating)) return false;
     res.color = m[3].str() == "*" ? BLACK : WHITE;
     std::string clock = m[4].str();
     size_t cut = clock.find_first_of(",/");
@@ -441,6 +441,7 @@ struct MatchRow {
     std::string player[2];
     std::string type;
     std::string flag; // R / U / T
+    double rating[2]{};
 };
 
 inline bool is_match_id_token(const std::string& s) {
@@ -453,23 +454,23 @@ inline bool is_match_id_token(const std::string& s) {
 
 inline bool parse_match_row_words(const std::vector<std::string>& words, size_t i, MatchRow& out) {
     // i: index of the match id
-    double tmp;
+    if (i >= words.size() || !is_match_id_token(words[i]) || words.size() - i < 7) return false;
     MatchRow row;
     row.id = words[i];
-    if (words.size() >= i + 7 && parse_double(words[i + 1], tmp)) {
+    if (parse_double(words[i + 1], row.rating[0])) {
         // .id rating name rating name type flag
+        if (!parse_double(words[i + 3], row.rating[1])) return false;
         row.player[0] = words[i + 2];
         row.player[1] = words[i + 4];
         row.type = words[i + 5];
         row.flag = words[i + 6];
-    } else if (words.size() >= i + 7) {
+    } else {
         // .id type flag rating name rating name (documented format)
+        if (!parse_double(words[i + 3], row.rating[0]) || !parse_double(words[i + 5], row.rating[1])) return false;
         row.type = words[i + 1];
         row.flag = words[i + 2];
         row.player[0] = words[i + 4];
         row.player[1] = words[i + 6];
-    } else {
-        return false;
     }
     out = row;
     return true;
@@ -517,6 +518,34 @@ inline bool parse_match_event(const Message& msg, MatchEvent& out) {
     }
     out = ev;
     return true;
+}
+
+// Sent to both players and spectators before the final "- match" notification.
+struct RatingChange {
+    std::string name;
+    double rating = 0;
+};
+struct RatingUpdate {
+    std::string match_id;
+    std::vector<RatingChange> players;
+};
+inline bool parse_rating_update(const Message& msg, RatingUpdate& out) {
+    const auto head = tokenize(msg.head);
+    if (head.size() != 3 || head[0] != "/os:" || head[1] != "rating_update" || !is_match_id_token(head[2])) return false;
+    RatingUpdate update; update.match_id = head[2];
+    for (const auto& line : msg.body) {
+        const auto words = tokenize(line);
+        if (words.empty()) continue;
+        // name old_rating @ old_deviation change -> new_rating @ new_deviation
+        if (words.size() != 9 || words[2] != "@" || words[5] != "->" || words[7] != "@") return false;
+        double value = 0;
+        for (int i : {1, 3, 4, 6, 8}) if (!parse_double(words[i], value)) return false;
+        RatingChange player; player.name = words[0];
+        parse_double(words[6], player.rating);
+        update.players.push_back(player);
+    }
+    if (update.players.size() != 2 || update.players[0].name == update.players[1].name) return false;
+    out = std::move(update); return true;
 }
 
 /*

@@ -108,8 +108,8 @@ inline void Application::draw_board(Match& m, int sub, RectF region) {
         p.mono(value ? signed_value(*value) : U"—").draw(p.font_size(18), Vec2{eval_x, y + 25}, value ? text : muted);
         bool running = m.clock_running(sub) && (online() || mode == Mode::Demo);
         p.mono(cursor() >= 0 || !g.has_clock ? U"--:--" : clock_text(g.remaining(c, now(), running))).draw(p.font_size(20), Vec2{x + 24, y + 53}, g.remaining(c, now(), running) < 30 && g.has_clock ? red : text);
-        std::optional<double> normal_rating, random_rating;
-        if (const auto* user = model.find_user(name)) { normal_rating = user->rating; random_rating = user->random_rating; }
+        auto normal_rating = model.player_rating(name);
+        auto random_rating = model.player_rating(name, true);
         auto& current_rating = m.type.find_first_of("rR") == std::string::npos ? normal_rating : random_rating;
         if (!current_rating && g.rating[c]) current_rating = g.rating[c];
         p.label(U"8  " + (normal_rating ? ToString(*normal_rating, 0) : U"—"), 10, x + 111, y + 53, muted);

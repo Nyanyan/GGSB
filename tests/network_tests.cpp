@@ -73,9 +73,16 @@ int main() {
         MockServer mock([&](SOCKET s) {
             authenticate(s);
             ggsb::ClientModel fixture; ggsb::Demo demo; demo.start(fixture, 0);
-            std::string raw = ggsb::board_message(fixture.matches.at(".117").game[0], "s8r14", true).text() + "\nREADY\r\n";
+            std::string raw = ggsb::board_message(fixture.matches.at(".117").game[0], "s8r14", true).text()
+                + "\n/os: rating_update .117\n|Kurogane 2384.00 @ 80.00 +12.37 -> 2396.37 @ 79.00"
+                  "\n|shiro 2297.00 @ 90.00 -12.37 -> 2284.63 @ 89.00"
+                  "\n/os: - match .117 2396 Kurogane 2285 shiro s8r14 R +16.00 .200\nREADY\r\n";
             for (size_t offset = 0; offset < raw.size(); offset += 17) write_all(s, raw.substr(offset, 17));
             check(read_line(s) == "t /os match", "command after login");
+            check(read_line(s) == "t /os who 8r a", "random rating refresh");
+            write_all(s, "/os: who 1\n|Kurogane + 2401.2@80.0\nREADY\n");
+            check(read_line(s) == "t /os who 8 a", "standard rating refresh");
+            write_all(s, "/os: who 1\n|alice + 2201.3@100.0\nREADY\n");
             check(read_line(s) == "tell bob private test", "private chat sent to player");
             write_all(s, "bob: private reply\nREADY\n");
             check(read_line(s) == "tell .chat public test", "global chat sent to channel");
@@ -91,6 +98,7 @@ int main() {
         }
         check(!connection.send("t /os match\nquit"), "newline command rejected");
         check(connection.send("t /os match"), "online command accepted");
+        check(connection.send("t /os who 8r a") && connection.send("t /os who 8 a"), "rating refresh commands accepted");
         check(connection.send("tell bob private test") && connection.send("tell .chat public test"), "chat commands accepted");
         std::vector<ggs::Message> messages;
         check(eventually([&] { for (auto& m : connection.poll()) messages.push_back(std::move(m)); return rounds >= 1; }), "first session completed");
@@ -98,6 +106,7 @@ int main() {
         check(!connection.send("t /os resign .1"), "destructive offline command discarded");
         check(eventually([&] { return connection.epoch() == 2 && connection.online(); }, 5000), "automatic reconnect");
         check(connection.send("t /os match"), "command on new connection");
+        check(connection.send("t /os who 8r a") && connection.send("t /os who 8 a"), "rating refresh commands after reconnect");
         check(connection.send("tell bob private test") && connection.send("tell .chat public test"), "chat commands after reconnect");
         check(eventually([&] { for (auto& m : connection.poll()) messages.push_back(std::move(m)); return rounds == 2; }), "second session completed");
         connection.stop(); mock.join();
@@ -105,10 +114,18 @@ int main() {
         for (const auto& message : messages) { ggs::BoardMessage b; if (ggs::parse_board_message(message, b)) ++boards; }
         check(boards >= 1, "fragmented board parsed");
         ggsb::ClientModel registered_model; registered_model.username = "alice";
-        for (const auto& message : messages) registered_model.receive(message, 0);
+        for (const auto& message : messages) {
+            registered_model.receive(message, 0);
+            if (message.head == "/os: rating_update .117") {
+                check(registered_model.player_rating("Kurogane", true) == 2396.37, "fragmented rating update applied immediately");
+                check(registered_model.player_rating("shiro", true) == 2284.63, "both precise rating updates applied");
+            }
+        }
         check(registered_model.registered == true, "registered account recognized");
         auto* alice = registered_model.find_user("alice");
-        check(alice && alice->rating == 2200.5 && alice->random_rating == 2400.7, "untagged who replies associated with both rating types across reconnect");
+        check(alice && alice->rating == 2201.3 && alice->random_rating == 2400.7, "who refresh updates only the received rating type across reconnect");
+        check(registered_model.player_rating("Kurogane", true) == 2401.2, "later who reply replaces the match rating");
+        check(!registered_model.find_user("shiro") && registered_model.player_rating("shiro", true) == 2285, "latest rounded match rating remains available after roster refreshes omit the player");
         check(registered_model.chats.threads.at("bob").messages.back().text == "private reply", "received private chat separated by player");
         check(registered_model.chats.threads.at(".chat").messages.back().text == "public reply", "received global chat separated from private chat");
         std::ifstream file("build/network-test.log"); std::string logged((std::istreambuf_iterator<char>(file)), {});

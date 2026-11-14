@@ -435,7 +435,7 @@ public:
         const auto header = ggs::tokenize(message.head);
         std::string game_id; int sub = -1;
         const bool protocol_update = header.size() >= 2 && (header[1] == "join" || header[1] == "update" || header[1] == "end"
-            || header[1] == "match" || header[1] == "who" || header[1] == "request" || header[1] == "+" || header[1] == "-"
+            || header[1] == "match" || header[1] == "who" || header[1] == "rating_update" || header[1] == "request" || header[1] == "+" || header[1] == "-"
             || ggs::split_game_id(header[1], game_id, sub));
         append(service, service, text, false, !protocol_update);
     }
@@ -460,7 +460,9 @@ class ClientModel {
 public:
     std::map<std::string, Match> matches;
     std::vector<User> users;
+    // Roster snapshots may drop players; retain their last received ratings separately.
     std::array<std::map<std::string, User>, 2> who_snapshots;
+    std::map<std::string, User> rating_cache;
     std::array<uint64_t, 2> who_received{};
     uint64_t who_sequence = 0;
     std::map<std::string, Request> requests;
@@ -476,6 +478,36 @@ public:
     const User* find_user(const std::string& name) const {
         auto it = std::find_if(users.begin(), users.end(), [&](const auto& u) { return u.name == name; });
         return it == users.end() ? nullptr : &*it;
+    }
+    std::optional<double> player_rating(const std::string& name, bool random = false) const {
+        if (const auto found = rating_cache.find(name); found != rating_cache.end()) {
+            const auto& value = random ? found->second.random_rating : found->second.rating;
+            if (value) return value;
+        }
+        if (const auto* user = find_user(name)) return random ? user->random_rating : user->rating;
+        return {};
+    }
+    void update_rating(const std::string& name, const std::string& type, double value) {
+        if (!token_safe(name) || !std::isfinite(value) || (type != "8r" && !supported_type(type))) return;
+        const int kind = type.find_first_of("rR") == std::string::npos ? 0 : 1;
+        auto& user = who_snapshots[kind][name]; user.name = name;
+        auto& cached = rating_cache[name]; cached.name = name;
+        // Apply every valid value in receive order, including rounded and zero values.
+        (kind == 0 ? cached.rating : cached.random_rating) = value;
+        (kind == 0 ? user.rating : user.random_rating) = value;
+    }
+    void rebuild_users() {
+        std::map<std::string, User> combined;
+        const int first = who_received[0] <= who_received[1] ? 0 : 1;
+        for (int idx : {first, 1 - first}) for (const auto& [name, row] : who_snapshots[idx]) {
+            auto& u = combined[name]; u.name = name;
+            if (!row.state.empty()) u.state = row.state;
+            if (const auto found = rating_cache.find(name); found != rating_cache.end()) {
+                u.rating = found->second.rating; u.random_rating = found->second.random_rating;
+            }
+        }
+        users.clear(); for (auto& [name, row] : combined) users.push_back(std::move(row));
+        std::sort(users.begin(), users.end(), [](const User& a, const User& b) { return a.rating != b.rating ? a.rating > b.rating : a.name < b.name; });
     }
     Match& ensure(const std::string& id) {
         auto& m = matches[id]; m.id = id; return m;
@@ -553,6 +585,8 @@ public:
             const int previous_ply = g.ply;
             const int previous_discs = std::popcount(g.pos.black | g.pos.white);
             g.id = bm.game_id; g.receive(bm, now);
+            for (const auto& clock : bm.clock) if (clock.valid) update_rating(clock.name, m.type, clock.rating);
+            rebuild_users();
             if (m.games() == 2 && g.ply != previous_ply && g.ply == m.game[1 - sub].ply) m.game[1 - sub].clock_ms = now;
             if (m.player[0].empty()) {
                 m.player[0] = g.name[sub == 1 ? WHITE : BLACK];
@@ -567,6 +601,17 @@ public:
                 && std::popcount(g.pos.black | g.pos.white) > previous_discs) { ++move_events; moved_matches.insert(m.id); }
             if (m.watching && (selected.empty() || (first_board && own))) selected = m.id;
             return;
+        }
+        ggs::RatingUpdate rating_update;
+        if (ggs::parse_rating_update(message, rating_update)) {
+            const auto found = matches.find(rating_update.match_id);
+            if (found == matches.end()) return; // The notification itself omits the rating type.
+            const auto& m = found->second;
+            for (const auto& player : rating_update.players) {
+                if (player.name != m.player[0] && player.name != m.player[1]) return;
+            }
+            for (const auto& player : rating_update.players) update_rating(player.name, m.type, player.rating);
+            rebuild_users(); return;
         }
         ggs::GameEnd end;
         if (ggs::parse_game_end(message, end)) {
@@ -588,19 +633,12 @@ public:
                 std::smatch r;
                 double rating = 0;
                 if (std::regex_search(line, r, re) && ggs::parse_double(r[3], rating) && token_safe(r[1])) {
-                    User u{r[1], r[2], {}, {}};
-                    (kind == 0 ? u.rating : u.random_rating) = rating;
-                    snapshot.emplace(u.name, std::move(u));
+                    const std::string name = r[1];
+                    update_rating(name, message.rating_type, rating);
+                    snapshot.at(name).state = r[2];
                 }
             }
-            std::map<std::string, User> combined;
-            const int first = who_received[0] <= who_received[1] ? 0 : 1;
-            for (int idx : {first, 1 - first}) for (const auto& [name, row] : who_snapshots[idx]) {
-                auto& u = combined[name]; u.name = name; u.state = row.state;
-                if (idx == 0) u.rating = row.rating; else u.random_rating = row.random_rating;
-            }
-            users.clear(); for (auto& [name, row] : combined) users.push_back(std::move(row));
-            std::sort(users.begin(), users.end(), [](const User& a, const User& b) { return a.rating != b.rating ? a.rating > b.rating : a.name < b.name; });
+            rebuild_users();
             return;
         }
         if (head.size() >= 2 && head[0] == "/os:" && head[1] == "request") {
@@ -634,6 +672,8 @@ public:
         if (new_active && m.closed_event) { m = Match{}; m.id = row.id; watches.erase(row.id); }
         m.type = row.type; m.flag = row.flag; m.listed = true;
         m.player[0] = row.player[0]; m.player[1] = row.player[1];
+        for (int i = 0; i < 2; ++i) update_rating(row.player[i], row.type, row.rating[i]);
+        rebuild_users();
         return m;
     }
     bool may_play(const Match& m, int sub, bool online, int replay_ply = -1) const {

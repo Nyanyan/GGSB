@@ -58,7 +58,7 @@ If a file cannot be decrypted, the app leaves it untouched and shows an error. Y
 - After a match finishes, its overall winner appears at the top, in the lobby and in the multiple-match list. Matches without an official result, such as aborted matches, show **No result**.
 - Switch between watched matches from the left sidebar. Finished matches show **Finished** and the overall winner's name there; draws and matches without a result are labeled separately. Use the **×** beside a watched match to stop watching it there. If the connection drops, the app reconnects automatically and resumes the matches you are still watching.
 - **Multiple matches** displays up to four matches per page. Each synchro match shows two boards and a combined evaluation graph. Add watched matches from the lobby; use the pages to view five or more matches. Click anywhere in a match's area to open its main view. **Stop watching** in each area removes that match without opening it. You cannot stop watching your own ongoing match.
-- **Players** shows ratings for standard starts (`8`) and random starts (`8r`) side by side. Both ratings also appear near the IDs in the match view; values that have not arrived show “—”. **Profile** sends `finger` to GGS itself, while **Statistics** sends `finger` to `/os`; the results appear in the console. You can also check whether a player is accepting challenges and send a challenge.
+- **Players** shows ratings for standard starts (`8`) and random starts (`8r`) side by side. Both ratings also appear near the IDs in the match view; values that have not arrived show “—”. Each player's ratings update as soon as match notifications, board updates, final rating updates or player-list replies arrive. The latest received value replaces the previous value for that player and rating type, including rounded values. Refreshing a list retains known ratings for players absent from the reply, so their match views continue to show the latest received values. **Profile** sends `finger` to GGS itself, while **Statistics** sends `finger` to `/os`; the results appear in the console. You can also check whether a player is accepting challenges and send a challenge.
 
 ![Watching multiple matches](docs/multi.png)
 
@@ -305,7 +305,7 @@ Siv3D 0.6.16で作った、GGS（Generic Game Server）用のオセロGUIです�
 - 終局後は画面上部に対戦全体の勝者を表示し、ロビーと複数対局の一覧でも勝者を確認できます。中断など公式結果がない対局は「結果なし」と表示します。
 - 観戦中の対局は左側から切り替えられます。終局した対局は、その一覧にも「終局」と対戦全体の勝者名を表示します。引き分けと結果のない対局は、それぞれ区別して表示します。各対局の横の「×」で、その場で観戦を終了できます。接続が切れると自動で再接続し、観戦を続けている対局を再開します。
 - 「複数対局」では、1ページに4対戦まで同時表示できます。シンクロ戦はそれぞれ2面と合算グラフを表示します。観戦する対局はロビーから追加でき、5対戦以上はページを切り替えて確認できます。対局エリア内をクリックすると、その対局画面を開きます。各エリアの「観戦を終了」では、対局画面を開かずに観戦を終了できます。自分の対局が進行中の場合、観戦は終了できません。
-- 「プレイヤー」画面では通常開始の `8` とランダム開始の `8r` のレーティングを並べて表示します。対局画面のID付近にも2種類を表示し、未受信の値は「—」になります。「プロフィール」はGGS本体へ `finger` を送り、「対局成績」は `/os` へ `finger` を送って、コンソールに結果を表示します。対局受付状態の確認や対局申込もできます。
+- 「プレイヤー」画面では通常開始の `8` とランダム開始の `8r` のレーティングを並べて表示します。対局画面のID付近にも2種類を表示し、未受信の値は「—」になります。対局通知・盤面更新・終局時のレート更新通知・プレイヤー一覧の応答を受信するたびに、そのプレイヤーの該当する種類のレートを更新します。丸め値を含め、最後に受信した値を表示します。一覧の再取得で応答に含まれなかった人のレートも保持するため、対局画面では引き続き取得済みの最新値を表示します。「プロフィール」はGGS本体へ `finger` を送り、「対局成績」は `/os` へ `finger` を送って、コンソールに結果を表示します。対局受付状態の確認や対局申込もできます。
 
 ![複数対局の観戦画面](docs/multi.png)
 
