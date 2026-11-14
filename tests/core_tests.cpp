@@ -585,9 +585,21 @@ int main(int argc, char** argv) {
         CHECK(joined.history_ok && joined.ply == 8);
         CHECK(joined.graph_series(BLACK) == (EvalSeries{{1, 0}, {3, 0}, {5, 3.5}, {7, 0}}));
         CHECK(joined.graph_series(WHITE) == (EvalSeries{{2, 0}, {4, 0}, {6, -2.5}, {8, 0}}));
+        // The values below each ID use evaluation(), including while rewinding.
+        // A later move must never replace the value shown for an earlier position.
+        auto check_replay_evaluations = [](const Game& game) {
+            const std::array<std::optional<double>, 9> black = {std::nullopt, 0, 0, 0, 0, 3.5, 3.5, 0, 0};
+            const std::array<std::optional<double>, 9> white = {std::nullopt, std::nullopt, 0, 0, 0, 0, -2.5, -2.5, 0};
+            for (int ply = 8; ply >= 0; --ply) {
+                CHECK(game.evaluation(BLACK, ply) == black[ply]);
+                CHECK(game.evaluation(WHITE, ply) == white[ply]);
+            }
+        };
+        check_replay_evaluations(joined);
         const auto black_history = joined.graph_series(BLACK), white_history = joined.graph_series(WHITE);
         late_observer.receive(past, 2);
         CHECK(joined.graph_series(BLACK) == black_history && joined.graph_series(WHITE) == white_history);
+        check_replay_evaluations(joined);
         auto continuation = historical;
         continuation.moves.push_back(graph_games[0].moves[8]);
         continuation.moves.back().has_eval = true; continuation.moves.back().eval = 4.5;
@@ -596,9 +608,12 @@ int main(int argc, char** argv) {
         late_observer.receive(historical_message(continuation, "8", false), 3);
         CHECK(joined.graph_series(BLACK) == (EvalSeries{{1, 0}, {3, 0}, {5, 3.5}, {7, 0}, {9, 4.5}}));
         CHECK(joined.graph_series(WHITE) == white_history);
+        CHECK(joined.evaluation(BLACK, 9) == 4.5);
+        check_replay_evaluations(joined); // Incoming live values leave earlier numeric values intact.
         auto silent = historical; silent.id = ".502"; silent.moves[5].has_eval = false;
         late_observer.receive(historical_message(silent, "8", true), 4);
         CHECK(late_observer.matches.at(".502").game[0].graph_series(WHITE).empty());
+        for (int ply = 0; ply <= 8; ++ply) CHECK(!late_observer.matches.at(".502").game[0].evaluation(WHITE, ply));
         ClientModel synchro_observer; historical.id = ".503.0";
         synchro_observer.receive(historical_message(historical, "s8", true), 5);
         historical.id = ".503.1"; std::swap(historical.name[BLACK], historical.name[WHITE]);
@@ -606,12 +621,14 @@ int main(int argc, char** argv) {
         const auto& joined_pair = synchro_observer.matches.at(".503");
         CHECK(joined_pair.graph_series(0) == (EvalSeries{{2, 0}, {3, 0}, {4, 0}, {5, 3.5}, {6, 1}, {7, -2.5}, {8, 0}}));
         CHECK(joined_pair.graph_series(1) == joined_pair.graph_series(0));
+        for (const auto& game : joined_pair.game) check_replay_evaluations(game);
         const auto historical_ggf0 = export_ggf(joined_pair.game[0], joined_pair.type);
         const auto historical_ggf1 = export_ggf(joined_pair.game[1], joined_pair.type);
         Match historical_import; std::string historical_error;
         CHECK(import_pair_ggf(historical_ggf0, historical_ggf1, historical_import, historical_error));
         CHECK(historical_import.graph_series(0) == joined_pair.graph_series(0));
         CHECK(historical_import.graph_series(1) == joined_pair.graph_series(1));
+        for (const auto& game : historical_import.game) check_replay_evaluations(game);
         std::ofstream("build/historical_join_0.ggf") << historical_ggf0;
         std::ofstream("build/historical_join_1.ggf") << historical_ggf1;
         // Detecting an evaluator later also restores the earlier zero values during live play.
@@ -623,6 +640,9 @@ int main(int argc, char** argv) {
         historical.pos = historical.history.back(); historical.ply = 5;
         early_observer.receive(historical_message(historical, "8", false), 8);
         CHECK(early_observer.matches.at(".504").game[0].graph_series(BLACK) == (EvalSeries{{1, 0}, {3, 0}, {5, 3.5}}));
+        CHECK(early_observer.matches.at(".504").game[0].evaluation(BLACK, 1) == 0);
+        CHECK(early_observer.matches.at(".504").game[0].evaluation(BLACK, 4) == 0);
+        CHECK(early_observer.matches.at(".504").game[0].evaluation(BLACK, 5) == 3.5);
         Request request;
         CHECK(!parse_request_line("/os: + .3 2200 foo 15:00 8k R 2100 bar", request));
         CHECK(parse_request_line("/os: + .3 2200 foo 15:00//00:02 s8r14 R 2100 bar", request));
