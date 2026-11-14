@@ -65,7 +65,7 @@ inline void Application::draw_mosaic() {
         for (int idx = 0; idx < 2; ++idx) {
             const auto& data = idx == 0 ? a : b; LineString curve;
             for (const auto& v : data) curve << Vec2{graph.x + graph.w * v.first / Max(1, m.x_max()), graph.center().y - graph.h * 0.46 * v.second * (idx == 0 ? 1 : -1) / scale};
-            if (curve.size() >= 2) curve.draw(1.6, idx == 0 ? mint : blue);
+            if (curve.size() >= 2) curve.draw(current_theme == Theme::Light ? 2.2 : 1.6, idx == 0 ? mint : graph_blue);
         }
         p.label(m.games() == 2 ? ui::tr(U"2局合算") : ui::tr(U"評価値"), 9, graph.x, graph.y - 11, muted);
         p.clipped(U"↑ " + str(m.player[0]), 9, {graph.x + 110, graph.y - 11, 181, 13}, mint);

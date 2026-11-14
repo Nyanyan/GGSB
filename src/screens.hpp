@@ -175,7 +175,7 @@ inline void Application::draw_graph(Match& m, RectF region) {
     }
     p.label(ui::tr(U"空きマス数"), 10, region.x + 18, region.y + 44, muted);
     Circle{region.x + 345, region.y + 25, 3}.draw(mint); p.clipped(str(m.player[0]), 12, {region.x + 356, region.y + 15, 100, 26}, mint);
-    Circle{region.x + 470, region.y + 25, 3}.draw(blue); p.clipped(str(m.player[1]), 12, {region.x + 481, region.y + 15, 100, 26}, blue);
+    Circle{region.x + 470, region.y + 25, 3}.draw(graph_blue); p.clipped(str(m.player[1]), 12, {region.x + 481, region.y + 15, 100, 26}, blue);
     if (p.button({region.rightX() - 280, region.y + 12, 36, 30}, U"|‹")) seek(0);
     if (p.button({region.rightX() - 238, region.y + 12, 36, 30}, U"‹")) step_replay(-1);
     if (p.button({region.rightX() - 195, region.y + 12, 54, 30}, playback ? U"Ⅱ" : U"▶")) { if (cursor() < 0) seek(0); playback = !playback; last_playback = now(); }
@@ -189,11 +189,11 @@ inline void Application::draw_graph(Match& m, RectF region) {
     auto x_for = [&](int count) { return plot.x + plot.w * Clamp(count, 0, limit) / Max(1, limit); };
     auto y_for = [&](double value) { return plot.center().y - plot.h * 0.5 * value / range; };
     RectF{plot.rightX() + 13, plot.y, 3, plot.h / 2 - 5}.draw(mint);
-    RectF{plot.rightX() + 13, plot.center().y + 5, 3, plot.h / 2 - 5}.draw(blue);
+    RectF{plot.rightX() + 13, plot.center().y + 5, 3, plot.h / 2 - 5}.draw(graph_blue);
     p.label(U"↑", 22, plot.rightX() + 25, plot.y + 3, mint, true);
     p.clipped(str(m.player[0]), 12, {plot.rightX() + 46, plot.y + 4, 96, 22}, mint, true);
     p.label(ui::tr(U"有利"), 10, plot.rightX() + 46, plot.y + 27, muted);
-    p.label(U"↓", 22, plot.rightX() + 25, plot.bottomY() - 44, blue, true);
+    p.label(U"↓", 22, plot.rightX() + 25, plot.bottomY() - 44, graph_blue, true);
     p.clipped(str(m.player[1]), 12, {plot.rightX() + 46, plot.bottomY() - 43, 96, 22}, blue, true);
     p.label(ui::tr(U"有利"), 10, plot.rightX() + 46, plot.bottomY() - 20, muted);
     int split = graph_board < 0 ? m.graph_divergence() : -1;
@@ -218,10 +218,10 @@ inline void Application::draw_graph(Match& m, RectF region) {
     auto draw_series = [&](const std::vector<std::pair<int, double>>& values, ColorF color, double sign) {
         LineString points;
         for (const auto& [ply, value] : values) points.push_back({x_for(ply), y_for(value * sign)});
-        if (points.size() > 1) points.draw(2, color);
+        if (points.size() > 1) points.draw(current_theme == Theme::Light ? 2.8 : 2.0, color);
         if (!points.empty()) Circle{points.back(), 3.5}.draw(color);
     };
-    draw_series(a, mint, 1); draw_series(b, blue, -1);
+    draw_series(a, mint, 1); draw_series(b, graph_blue, -1);
     if (a.empty() && b.empty()) p.font(ui::tr(U"評価値未受信")).drawAt(p.font_size(14), plot.center(), muted);
     const bool hovering = !p.blocked && plot.mouseOver();
     if (hovering && MouseL.down()) graph_dragging = true;
