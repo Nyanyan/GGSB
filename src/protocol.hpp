@@ -262,14 +262,14 @@ inline bool parse_clock_line(const std::string& line, ClockInfo& out) {
 
 /*
     @brief move with optional evaluation and time: "f5/1.23/4.56", "PA/-2.00", "d3//0.51", "pass"
-    an evaluation of exactly 0 is not sent by the server, so has_eval == false can also mean 0
+    GGS omits a zero evaluation; an empty evaluation field followed by time means zero.
 */
 struct MoveInfo {
     bool valid = false;
     int ply = 0;
     bool pass = false;
     int cell = -1;
-    bool has_eval = false;
+    bool has_eval = false; // Explicit value, or a known zero in a timed move such as H7//4.44.
     double eval = 0.0;
     std::string raw;
 };
@@ -299,6 +299,9 @@ inline bool parse_move_token(const std::string& token, MoveInfo& out) {
             res.has_eval = true;
             res.eval = v;
         }
+    } else if (parts.size() == 3 && parts[1].empty()) {
+        double elapsed = 0;
+        if (parse_double(parts[2], elapsed) && elapsed >= 0) res.has_eval = true;
     }
     res.valid = true;
     out = res;

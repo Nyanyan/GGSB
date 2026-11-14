@@ -96,7 +96,7 @@ The vertical axis is the disc margin from the left player's perspective. It star
 
 The mint line shows evaluations sent by the left player. The blue line shows evaluations sent by the right player with their signs reversed. Regular matches use one game's values. Synchro matches align the two games by the number of placements, excluding passes, and add their values together.
 
-Joining a game in progress also loads the move and evaluation history supplied by GGS, so the graph includes values from before you started watching. GGS omits zero evaluations; once a player is known to send evaluations, their earlier omitted values are restored as zero. A player who has supplied no evaluation remains unknown.
+Joining a game in progress also loads the move and evaluation history supplied by GGS, so the graph includes values from before you started watching. A timed move such as `H7//4.44` means evaluation zero and 4.44 seconds elapsed; it is displayed as zero immediately, even when that player has not sent any nonzero value. Moves containing only a coordinate remain unknown until the player supplies a known evaluation, at which point their earlier omitted values are restored as zero.
 
 Near each board's IDs, numeric evaluations from Black and White are shown from each color's own perspective. These values also appear in the multiple-match view. For a synchro match, switch the graph between **Both boards**, **Board 1** and **Board 2**. When rewinding, the numbers below the IDs use the evaluation history up to the displayed move, including values from before you started watching and restored zeros. Values from later moves are excluded.
 
@@ -345,7 +345,7 @@ Siv3D 0.6.16で作った、GGS（Generic Game Server）用のオセロGUIです�
 
 ミント色の線は左側の選手が送った評価値、青色の線は右側の選手が送った評価値を反転したものです。通常戦では1局、シンクロ戦ではパスを除いた着手数を揃えて2局の値を合算します。
 
-対局の途中から観戦した場合も、GGSから届く着手・評価値の履歴を読み込み、観戦前の評価値をグラフに表示します。GGSは評価値0を省略するため、評価値を送信する選手だと確認できた時点で、それ以前の省略値も0として復元します。評価値を一度も受信していない選手の値は未受信として扱います。
+対局の途中から観戦した場合も、GGSから届く着手・評価値の履歴を読み込み、観戦前の評価値をグラフに表示します。`H7//4.44` のように評価値欄が空で消費時間が付いた着手は、評価値0・消費時間4.44秒を意味します。その選手の0以外の評価値を受信したことがなくても、受信した時点で0として表示します。座標だけの着手は未受信として扱い、その選手から評価値を取得できた時点で、それ以前の省略値も0として復元します。
 
 各盤のID付近には、黒番・白番がそれぞれ送った評価値を数値で表示します。この数値は各色の視点です。複数対局の画面でも各盤の数値を確認できます。シンクロ戦のグラフは「2局合算」「盤1」「盤2」で切り替えられます。巻き戻したときは、観戦前の履歴や復元した0評価も含め、表示中の手数までの履歴からID下の評価値を表示します。それより先の手の評価値は表示しません。
 

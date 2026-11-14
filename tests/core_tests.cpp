@@ -617,6 +617,32 @@ int main(int argc, char** argv) {
         CHECK(evaluations.evals[BLACK].back().value == 0);
         move.ply = 5; move.pass = true; move.has_eval = true; move.eval = 100;
         evaluations.record_eval(BLACK, move, &initial); CHECK(evaluations.evals[BLACK].size() == 2);
+        std::ifstream zero_log("tests/fixtures/nyanyan53.txt"); CHECK(bool(zero_log));
+        const std::string zero_raw((std::istreambuf_iterator<char>(zero_log)), {});
+        ggs::MessageFramer zero_framer;
+        for (size_t offset = 0; offset < zero_raw.size(); offset += 17) zero_framer.feed(zero_raw.substr(offset, 17), 1);
+        const auto zero_messages = zero_framer.take(); CHECK(zero_messages.size() == 5);
+        ClientModel zero_updates;
+        for (const auto& message : zero_messages) zero_updates.receive(message, 1);
+        const auto& zero_match = zero_updates.matches.at(".53");
+        const auto& nyanyan_black = zero_match.game[0];
+        CHECK(nyanyan_black.name[BLACK] == "nyanyan" && nyanyan_black.ply == 19);
+        CHECK(nyanyan_black.evaluation(BLACK, 19) == 0);
+        CHECK(!nyanyan_black.evaluation(BLACK, 18));
+        CHECK(nyanyan_black.evaluation(WHITE, 18) == 0);
+        CHECK(nyanyan_black.graph_series(BLACK) == (EvalSeries{{19, 0}}));
+        CHECK(zero_match.game[1].evaluation(WHITE, 18) == 0);
+        CHECK(zero_match.game[1].evaluation(BLACK, 19) == 0);
+        CHECK(zero_match.graph_series(0) == (EvalSeries{{19, 0}}));
+        CHECK(zero_match.graph_series(1) == (EvalSeries{{18, 0}, {19, 0}}));
+        for (const std::string token : {"H7//4.44", "f1//2.91", "b5//2.91", "e2//4.00", "c8//3.41"}) {
+            ggs::MoveInfo parsed; CHECK(ggs::parse_move_token(token, parsed));
+            CHECK(parsed.has_eval && parsed.eval == 0);
+        }
+        for (const std::string token : {"H7", "H7//", "H7//nan", "H7//invalid", "H7//-1", "H7/invalid/4.44"}) {
+            ggs::MoveInfo parsed; CHECK(ggs::parse_move_token(token, parsed));
+            CHECK(!parsed.has_eval);
+        }
         // Real joins carry the start board, all moves and the current board.
         // GGS omits zero evaluations, even before the first nonzero value.
         auto historical_message = [](const Game& game, const std::string& type, bool join) {
@@ -626,9 +652,12 @@ int main(int argc, char** argv) {
                 if (!ggs::parse_move_line(line, parsed)) continue;
                 const auto& turn = game.moves.at(parsed.ply - 1);
                 std::ostringstream out;
-                out << turn.ply << ": " << coordinate(turn.pass ? -1 : turn.cell) << '/';
-                if (turn.has_eval && turn.eval != 0) out << turn.eval;
-                out << "/5.00"; line = out.str();
+                out << turn.ply << ": " << coordinate(turn.pass ? -1 : turn.cell);
+                if (turn.has_eval) {
+                    out << '/'; if (turn.eval != 0) out << turn.eval;
+                    out << "/5.00";
+                }
+                line = out.str();
             }
             return message;
         };
@@ -684,6 +713,19 @@ int main(int argc, char** argv) {
         CHECK(joined_pair.graph_series(0) == (EvalSeries{{2, 0}, {3, 0}, {4, 0}, {5, 3.5}, {6, 1}, {7, -2.5}, {8, 0}}));
         CHECK(joined_pair.graph_series(1) == joined_pair.graph_series(0));
         for (const auto& game : joined_pair.game) check_replay_evaluations(game);
+        // A whole history of timed zeros needs no nonzero evaluation to become visible.
+        auto timed_zero = historical; timed_zero.id = ".505";
+        for (auto& turn : timed_zero.moves) { turn.has_eval = true; turn.eval = 0; }
+        late_observer.receive(historical_message(timed_zero, "8", true), 7);
+        const auto& zero_history = late_observer.matches.at(".505").game[0];
+        CHECK(zero_history.history_ok && zero_history.graph_series(BLACK).size() == 4 && zero_history.graph_series(WHITE).size() == 4);
+        for (int ply = 1; ply <= 8; ++ply) {
+            CHECK(zero_history.evaluation(BLACK, ply) == 0);
+            if (ply >= 2) CHECK(zero_history.evaluation(WHITE, ply) == 0);
+        }
+        Match zero_import; std::string zero_error;
+        CHECK(import_ggf(export_ggf(zero_history, "8"), zero_import, zero_error));
+        CHECK(zero_import.game[0].evaluation(BLACK, 1) == 0 && zero_import.game[0].evaluation(WHITE, 2) == 0);
         const auto historical_ggf0 = export_ggf(joined_pair.game[0], joined_pair.type);
         const auto historical_ggf1 = export_ggf(joined_pair.game[1], joined_pair.type);
         Match historical_import; std::string historical_error;
