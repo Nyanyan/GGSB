@@ -13,7 +13,7 @@ void Main() {
             licenses.writeln(license.title); licenses.writeln(license.copyright); licenses.writeln(license.text); licenses.writeln(U"\n");
         }
     }
-    Window::SetTitle(U"GGSB v0.4 — Othello / Generic Game Server");
+    Window::SetTitle(U"GGSB v0.5 — Othello / Generic Game Server");
     Window::SetStyle(WindowStyle::Sizable);
     Window::Resize(1372, 900);
     Window::SetMinimumFrameBufferSize({1120, 700});

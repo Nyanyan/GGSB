@@ -1,4 +1,4 @@
-# GGSB
+# GGSB v0.5
 
 [English](#english) | [日本語](#日本語)
 
