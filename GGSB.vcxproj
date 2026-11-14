@@ -33,7 +33,8 @@ copy /Y "$(TargetPath)" "$(ProjectDir)App\GGSB.exe"</Command></PostBuildEvent>
   <ItemGroup><LanguagePack Include="assets\languages\*.json" /></ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="CopyLanguagePacks" AfterTargets="Build">
-    <MakeDir Directories="$(ProjectDir)App\languages" />
+    <MakeDir Directories="$(OutDir)languages;$(ProjectDir)App\languages" />
+    <Copy SourceFiles="@(LanguagePack)" DestinationFolder="$(OutDir)languages" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(LanguagePack)" DestinationFolder="$(ProjectDir)App\languages" SkipUnchangedFiles="true" />
   </Target>
 </Project>

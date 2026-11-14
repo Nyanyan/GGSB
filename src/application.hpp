@@ -456,11 +456,16 @@ public:
         }
     }
     bool verify_offline_workflow(String& result) {
-        if (!ui::language_pack().available() || ui::language_pack().selected() != U"en" || ui::tr(U"ロビー") != U"Lobby") { result = U"FAIL: English default / language packs"; return false; }
+        if (!ui::language_pack().available() || ui::language_pack().selected() != U"en" || ui::tr(U"ロビー") != U"Lobby"
+            || ui::tr(U"ID / ユーザー名") != U"ID / Username" || ui::tr(U"パスワード") != U"Password"
+            || ui::tr(U"接続する") != U"Connect") { result = U"FAIL: English default / connection labels / language packs"; return false; }
         set_language(U"ja");
         INI japanese_settings{U"settings.ini"};
-        if (ui::tr(U"ロビー") != U"ロビー" || japanese_settings.getOr<String>(U"view.language", U"") != U"ja") { result = U"FAIL: Japanese / language persistence"; return false; }
+        if (ui::tr(U"ロビー") != U"ロビー" || ui::tr(U"ID / ユーザー名") != U"ID / ユーザー名"
+            || ui::tr(U"パスワード") != U"パスワード" || japanese_settings.getOr<String>(U"view.language", U"") != U"ja") { result = U"FAIL: Japanese / connection labels / language persistence"; return false; }
         set_language(U"en");
+        if (ui::tr(U"ID / ユーザー名") != U"ID / Username" || ui::tr(U"パスワード") != U"Password"
+            || ui::tr(U"接続する") != U"Connect") { result = U"FAIL: switching connection labels back to English"; return false; }
         if (ui::connection_status("切断 · 3秒後に再接続") != U"Disconnected · Retry in 3 s" || ui::tr(U"棋譜に非合法手が含まれています") != U"The game record contains an illegal move.") { result = U"FAIL: localized status / errors"; return false; }
         if (mode != Mode::Offline || page != ConnectionPage || !modal.empty() || !model.matches.empty() || may_match()) { result = U"FAIL: startup connection screen / no demo / match controls"; return false; }
         challenge(); if (!modal.empty()) { result = U"FAIL: offline challenge"; return false; }

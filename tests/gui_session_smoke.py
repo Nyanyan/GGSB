@@ -20,17 +20,19 @@ def user_data_fingerprint():
     return {str(path): hashlib.sha256(path.read_bytes()).digest() for path in files if path.is_file()}
 
 
-def prepare_runtime():
+def prepare_runtime(executable=None):
     # The app changes its working directory to the executable's directory.
     # A separate cwd alone therefore cannot protect the user's saved settings.
     (ROOT / "build").mkdir(exist_ok=True)
     runtime = Path(tempfile.mkdtemp(prefix="gui-session-runtime-", dir=ROOT / "build"))
+    origin = Path(executable).resolve().parent if executable else ROOT / "App"
     for name in ("GGSB.exe", "THIRD_PARTY_LICENSES.txt"):
-        source = ROOT / "App" / name
+        source = origin / name
         if source.is_file():
             shutil.copy2(source, runtime / name)
-    for name in ("dll", "engine", "languages"):
+    for name in ("dll", "engine"):
         shutil.copytree(ROOT / "App" / name, runtime / name)
+    shutil.copytree(origin / "languages", runtime / "languages")
     return runtime
 
 

@@ -28,7 +28,7 @@ Dark is the default theme. Select **Dark** or **Light** under **Theme** in Setti
 
 Enable **Enlarge small text** in Settings to enlarge compact labels and supporting information by 30%. Player names, ratings and status labels in the player list are included. Body text, input fields and headings keep their current size. The setting takes effect immediately and is saved for the next launch.
 
-The default display language is English. Switch languages using **English** or **日本語** on the connection screen, or the language field in Settings after login. Your choice is remembered on the next launch. The language pack sources are `assets/languages/en.json` and `assets/languages/ja.json`; setup and build copy them to `App/languages/`. To change the wording, edit the values under `strings` while keeping the keys. Player names, chat messages and server responses are not translated.
+The default display language is English. Switch languages using **English** or **日本語** on the connection screen, or the language field in Settings after login. Your choice is remembered on the next launch. The language pack sources are `assets/languages/en.json` and `assets/languages/ja.json`; setup copies them to `App/languages/`, and builds also deploy them beside the executable under `build/Debug/languages/` or `build/Release/languages/`. The app loads translations from the `languages/` folder beside its executable, including when started from Visual Studio. To change the wording, edit the values under `strings` while keeping the keys. Player names, chat messages and server responses are not translated.
 
 Lists of players, matches, requests, saved accounts, tracking sessions, statistics, moves and chat messages have scrollbars. Use the mouse wheel over a list, drag its scrollbar, or click an empty part of the scrollbar track to move through it.
 
@@ -207,6 +207,8 @@ The GUI smoke test also verifies closing and reopening chats, retaining drafts, 
 
 With Python 3, run `python tests/gui_session_smoke.py` to check registered and unregistered login in the actual app. This test connects only to a local mock server and verifies the lobby after login, both ratings, the destinations of profile and game-statistics queries, private and public chat sending and receiving, visibility of playing controls, and the absence of playing-setting commands for unregistered accounts.
 
+After a Release build, run `python tests/gui_language_smoke.py` to verify language files deployed beside the build output and connection labels switching from English to Japanese and back to English. Pass `--exe build/Debug/GGSB.exe` to check a Debug build. It runs in an isolated folder and saves connection-screen captures under `build/`.
+
 Add `--lobby-events` to run a 64-second check of live match and request notifications, the absence of periodic lobby queries, and the 60-second keepalive.
 
 Add `--input-history` to check console and chat history, draft restoration, recipient isolation, Japanese input protection and failed sends in the actual app.
@@ -277,7 +279,7 @@ Siv3D 0.6.16で作った、GGS（Generic Game Server）用のオセロGUIです�
 
 設定画面の「小さい文字を大きくする」をオンにすると、補助情報などの小さい文字だけを30%拡大します。プレイヤー一覧の名前・レーティング・状態表示も対象です。本文や入力欄、見出しのサイズはそのままです。設定はすぐに反映され、次回の起動にも引き継ぎます。
 
-表示言語の既定は英語です。接続画面の「English」「日本語」、またはログイン後の設定画面の言語欄で切り替えられます。選択した言語は次回の起動にも引き継ぎます。言語パックのソースは `assets/languages/en.json` と `assets/languages/ja.json` です。セットアップとビルド時に `App/languages/` へコピーします。`strings` 内のキーを維持して値を編集すると、表示文言を変更できます。プレイヤー名・チャット本文・サーバーの応答は翻訳しません。
+表示言語の既定は英語です。接続画面の「English」「日本語」、またはログイン後の設定画面の言語欄で切り替えられます。選択した言語は次回の起動にも引き継ぎます。言語パックのソースは `assets/languages/en.json` と `assets/languages/ja.json` です。セットアップ時は `App/languages/` へ、ビルド時はそこに加えて実行ファイルの横の `build/Debug/languages/` または `build/Release/languages/` へコピーします。アプリは実行ファイルの横の `languages/` から翻訳を読み込むため、Visual Studioから起動した場合も言語を切り替えられます。`strings` 内のキーを維持して値を編集すると、表示文言を変更できます。プレイヤー名・チャット本文・サーバーの応答は翻訳しません。
 
 プレイヤー、対局・募集、保存アカウント、記録区間・成績、棋譜の手順、チャットなどの一覧にはスクロールバーがあります。一覧上のホイール、バーのドラッグ、バーの空いている部分のクリックで移動できます。
 
@@ -455,6 +457,8 @@ GUIテストは実行ファイルとランタイムだけを `build/` 内の専�
 GUIの動作確認では、チャットを閉じて開き直す操作、下書きの保持、観戦の終了と再開も検証します。観戦終了後に遅れて届いた盤面通知で観戦が再開しないことも確認します。音の検証では、着手音と通知音の出力、音量を下げた場合と0％にした場合、会話ごとのミュートと全体のチャット通知設定を確認します。また、再起動後に音量と会話ごとの設定を復元できることも検証します。
 
 Python 3が使える環境では、`python tests/gui_session_smoke.py` で登録済み・未登録のログインを実際のアプリで確認できます。このテストではローカルの模擬サーバーだけに接続し、ログイン後のロビー表示、2種類のレーティング、プロフィールと対局成績の問い合わせ先、個人チャット・全体チャットの送受信、対戦操作の表示可否、未登録時に対戦設定コマンドを送らないことを検証します。
+
+Releaseビルド後に `python tests/gui_language_smoke.py` を実行すると、ビルド先への翻訳ファイルの配置と、接続画面の英語→日本語→英語の切り替えを検証できます。Debug版は `--exe build/Debug/GGSB.exe` で指定します。専用フォルダーで実行し、画面画像を `build/` に保存します。
 
 `--lobby-events` を付けると、64秒間のテストで対局・募集の通知による更新、定期的な一覧取得がないこと、60秒ごとの切断防止通信を確認できます。
 

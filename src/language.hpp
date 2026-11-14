@@ -6,7 +6,11 @@ class LanguagePack {
     s3d::JSON english_, japanese_;
     s3d::String language_ = U"en";
 public:
-    LanguagePack() : english_(s3d::JSON::Load(U"languages/en.json")), japanese_(s3d::JSON::Load(U"languages/ja.json")) {}
+    LanguagePack() {
+        const auto directory = s3d::FileSystem::ParentPath(s3d::FileSystem::ModulePath());
+        english_ = s3d::JSON::Load(s3d::FileSystem::PathAppend(directory, U"languages/en.json"));
+        japanese_ = s3d::JSON::Load(s3d::FileSystem::PathAppend(directory, U"languages/ja.json"));
+    }
     void select(const s3d::String& language) { language_ = language == U"ja" ? U"ja" : U"en"; }
     const s3d::String& selected() const { return language_; }
     s3d::String text(const s3d::String& key) const {
