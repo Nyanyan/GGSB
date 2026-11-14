@@ -555,6 +555,74 @@ int main(int argc, char** argv) {
         CHECK(evaluations.evals[BLACK].back().value == 0);
         move.ply = 5; move.pass = true; move.has_eval = true; move.eval = 100;
         evaluations.record_eval(BLACK, move, &initial); CHECK(evaluations.evals[BLACK].size() == 2);
+        // Real joins carry the start board, all moves and the current board.
+        // GGS omits zero evaluations, even before the first nonzero value.
+        auto historical_message = [](const Game& game, const std::string& type, bool join) {
+            auto message = board_message(game, type, join);
+            for (auto& line : message.body) {
+                ggs::MoveInfo parsed;
+                if (!ggs::parse_move_line(line, parsed)) continue;
+                const auto& turn = game.moves.at(parsed.ply - 1);
+                std::ostringstream out;
+                out << turn.ply << ": " << coordinate(turn.pass ? -1 : turn.cell) << '/';
+                if (turn.has_eval && turn.eval != 0) out << turn.eval;
+                out << "/5.00"; line = out.str();
+            }
+            return message;
+        };
+        Game historical = graph_games[0]; historical.id = ".501";
+        historical.name[BLACK] = "alice"; historical.name[WHITE] = "bob";
+        historical.moves.resize(8); historical.history.resize(9);
+        historical.pos = historical.history.back(); historical.ply = 8; historical.finished = false;
+        for (auto& turn : historical.moves) { turn.has_eval = false; turn.eval = 0; }
+        historical.moves[4].has_eval = true; historical.moves[4].eval = 3.5;
+        historical.moves[5].has_eval = true; historical.moves[5].eval = -2.5;
+        const auto past = historical_message(historical, "8", true);
+        ggs::BoardMessage parsed_past; CHECK(ggs::parse_board_message(past, parsed_past));
+        CHECK(parsed_past.boards.size() == 2 && parsed_past.moves.size() == 8 && !parsed_past.moves.front().has_eval);
+        ClientModel late_observer; late_observer.receive(past, 1);
+        auto& joined = late_observer.matches.at(".501").game[0];
+        CHECK(joined.history_ok && joined.ply == 8);
+        CHECK(joined.graph_series(BLACK) == (EvalSeries{{1, 0}, {3, 0}, {5, 3.5}, {7, 0}}));
+        CHECK(joined.graph_series(WHITE) == (EvalSeries{{2, 0}, {4, 0}, {6, -2.5}, {8, 0}}));
+        const auto black_history = joined.graph_series(BLACK), white_history = joined.graph_series(WHITE);
+        late_observer.receive(past, 2);
+        CHECK(joined.graph_series(BLACK) == black_history && joined.graph_series(WHITE) == white_history);
+        auto continuation = historical;
+        continuation.moves.push_back(graph_games[0].moves[8]);
+        continuation.moves.back().has_eval = true; continuation.moves.back().eval = 4.5;
+        continuation.history.push_back(graph_games[0].history[9]);
+        continuation.pos = continuation.history.back(); continuation.ply = 9;
+        late_observer.receive(historical_message(continuation, "8", false), 3);
+        CHECK(joined.graph_series(BLACK) == (EvalSeries{{1, 0}, {3, 0}, {5, 3.5}, {7, 0}, {9, 4.5}}));
+        CHECK(joined.graph_series(WHITE) == white_history);
+        auto silent = historical; silent.id = ".502"; silent.moves[5].has_eval = false;
+        late_observer.receive(historical_message(silent, "8", true), 4);
+        CHECK(late_observer.matches.at(".502").game[0].graph_series(WHITE).empty());
+        ClientModel synchro_observer; historical.id = ".503.0";
+        synchro_observer.receive(historical_message(historical, "s8", true), 5);
+        historical.id = ".503.1"; std::swap(historical.name[BLACK], historical.name[WHITE]);
+        synchro_observer.receive(historical_message(historical, "s8", true), 6);
+        const auto& joined_pair = synchro_observer.matches.at(".503");
+        CHECK(joined_pair.graph_series(0) == (EvalSeries{{2, 0}, {3, 0}, {4, 0}, {5, 3.5}, {6, 1}, {7, -2.5}, {8, 0}}));
+        CHECK(joined_pair.graph_series(1) == joined_pair.graph_series(0));
+        const auto historical_ggf0 = export_ggf(joined_pair.game[0], joined_pair.type);
+        const auto historical_ggf1 = export_ggf(joined_pair.game[1], joined_pair.type);
+        Match historical_import; std::string historical_error;
+        CHECK(import_pair_ggf(historical_ggf0, historical_ggf1, historical_import, historical_error));
+        CHECK(historical_import.graph_series(0) == joined_pair.graph_series(0));
+        CHECK(historical_import.graph_series(1) == joined_pair.graph_series(1));
+        std::ofstream("build/historical_join_0.ggf") << historical_ggf0;
+        std::ofstream("build/historical_join_1.ggf") << historical_ggf1;
+        // Detecting an evaluator later also restores the earlier zero values during live play.
+        ClientModel early_observer; historical.id = ".504"; historical.moves.resize(4); historical.history.resize(5);
+        historical.pos = historical.history.back(); historical.ply = 4;
+        early_observer.receive(historical_message(historical, "8", true), 7);
+        CHECK(early_observer.matches.at(".504").game[0].graph_series(BLACK).empty());
+        historical.moves.push_back(continuation.moves[4]); historical.history.push_back(continuation.history[5]);
+        historical.pos = historical.history.back(); historical.ply = 5;
+        early_observer.receive(historical_message(historical, "8", false), 8);
+        CHECK(early_observer.matches.at(".504").game[0].graph_series(BLACK) == (EvalSeries{{1, 0}, {3, 0}, {5, 3.5}}));
         Request request;
         CHECK(!parse_request_line("/os: + .3 2200 foo 15:00 8k R 2100 bar", request));
         CHECK(parse_request_line("/os: + .3 2200 foo 15:00//00:02 s8r14 R 2100 bar", request));

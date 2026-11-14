@@ -73,7 +73,13 @@ int main() {
         MockServer mock([&](SOCKET s) {
             authenticate(s);
             ggsb::ClientModel fixture; ggsb::Demo demo; demo.start(fixture, 0);
-            std::string raw = ggsb::board_message(fixture.matches.at(".117").game[0], "s8r14", true).text()
+            auto past = ggsb::board_message(fixture.matches.at(".117").game[0], "s8r14", true);
+            for (auto& line : past.body) {
+                ggs::MoveInfo move;
+                if (ggs::parse_move_line(line, move) && move.ply <= 2)
+                    line = std::to_string(move.ply) + ": " + ggsb::coordinate(move.cell) + "//5.00";
+            }
+            std::string raw = past.text()
                 + "\n/os: rating_update .117\n|Kurogane 2384.00 @ 80.00 +12.37 -> 2396.37 @ 79.00"
                   "\n|shiro 2297.00 @ 90.00 -12.37 -> 2284.63 @ 89.00"
                   "\n/os: - match .117 2396 Kurogane 2285 shiro s8r14 R +16.00 .200\nREADY\r\n";
@@ -116,6 +122,12 @@ int main() {
         ggsb::ClientModel registered_model; registered_model.username = "alice";
         for (const auto& message : messages) {
             registered_model.receive(message, 0);
+            if (message.head.starts_with("/os: join .117.0")) {
+                const auto& joined = registered_model.matches.at(".117").game[0];
+                check(joined.history_ok && joined.moves.size() == 16, "fragmented late join restores all past moves");
+                check(joined.graph_series(BLACK).front() == std::pair<int, double>{1, 0}, "past black zero evaluation reaches the graph");
+                check(joined.graph_series(WHITE).front() == std::pair<int, double>{2, 0}, "past white zero evaluation reaches the graph");
+            }
             if (message.head == "/os: rating_update .117") {
                 check(registered_model.player_rating("Kurogane", true) == 2396.37, "fragmented rating update applied immediately");
                 check(registered_model.player_rating("shiro", true) == 2284.63, "both precise rating updates applied");

@@ -94,7 +94,17 @@ struct Game {
     }
     void record_eval(int mover, const ggs::MoveInfo& move, const Position* before) {
         if (mover < 0 || mover > 1) return;
-        if (move.has_eval) sends_eval[mover] = true;
+        if (move.has_eval && !sends_eval[mover]) {
+            sends_eval[mover] = true;
+            // GGS omits zero values. Once this color is known to send evaluations,
+            // restore its earlier zeros from the reconstructed move history too.
+            for (size_t i = 0; i < moves.size() && i + 1 < history.size(); ++i) {
+                const auto& previous_move = moves[i]; const auto& position = history[i];
+                if (previous_move.ply >= move.ply || previous_move.has_eval || previous_move.pass
+                    || position.to_move != mover || std::popcount(legal_moves(position)) <= 1) continue;
+                evals[mover].push_back({previous_move.ply, 0});
+            }
+        }
         if (move.pass || (before && std::popcount(legal_moves(*before)) <= 1)) return;
         if (!move.has_eval && (!before || !sends_eval[mover])) return;
         evals[mover].push_back({move.ply, move.has_eval ? move.eval : 0.0});

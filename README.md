@@ -96,6 +96,8 @@ The vertical axis is the disc margin from the left player's perspective. It star
 
 The mint line shows evaluations sent by the left player. The blue line shows evaluations sent by the right player with their signs reversed. Regular matches use one game's values. Synchro matches align the two games by the number of placements, excluding passes, and add their values together.
 
+Joining a game in progress also loads the move and evaluation history supplied by GGS, so the graph includes values from before you started watching. GGS omits zero evaluations; once a player is known to send evaluations, their earlier omitted values are restored as zero. A player who has supplied no evaluation remains unknown.
+
 Near each board's IDs, numeric evaluations from Black and White are shown from each color's own perspective. These values also appear in the multiple-match view. For a synchro match, switch the graph between **Both boards**, **Board 1** and **Board 2**. While reviewing history, the app shows only values received up to that move.
 
 Lines appear once the required evaluations for each player are available. Positions requiring a pass or having only one legal move carry forward the previous value; finished games use the final disc margin. **Branch** marks the first point where the two histories differ at the same number of placements.
@@ -342,6 +344,8 @@ Siv3D 0.6.16で作った、GGS（Generic Game Server）用のオセロGUIです�
 縦軸は左側の選手の視点で見た石差です。初期範囲は−4～+4で、値が収まらなくなったら広がります。シンクロ戦で各盤を表示するときは、両盤の最大値から共通の範囲を決めます。上が左側の選手、下が右側の選手に有利で、矢印と選手名で方向を示します。各選手の評価値は盤面上のIDの下に表示します。
 
 ミント色の線は左側の選手が送った評価値、青色の線は右側の選手が送った評価値を反転したものです。通常戦では1局、シンクロ戦ではパスを除いた着手数を揃えて2局の値を合算します。
+
+対局の途中から観戦した場合も、GGSから届く着手・評価値の履歴を読み込み、観戦前の評価値をグラフに表示します。GGSは評価値0を省略するため、評価値を送信する選手だと確認できた時点で、それ以前の省略値も0として復元します。評価値を一度も受信していない選手の値は未受信として扱います。
 
 各盤のID付近には、黒番・白番がそれぞれ送った評価値を数値で表示します。この数値は各色の視点です。複数対局の画面でも各盤の数値を確認できます。シンクロ戦のグラフは「2局合算」「盤1」「盤2」で切り替えられます。履歴閲覧中は、その手数までに受信した値を表示します。
 
