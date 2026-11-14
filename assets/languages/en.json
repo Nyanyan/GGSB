@@ -311,6 +311,7 @@
     "通知音（設定でオフ）": "Sound (off in Settings)",
     "チャット受信時に音を鳴らす": "Play a sound for incoming chat",
     "音量": "Volume",
-    "通知音を試す": "Test notification sound"
+    "通知音を試す": "Test notification sound",
+    "終了 ": "Ended "
   }
 }

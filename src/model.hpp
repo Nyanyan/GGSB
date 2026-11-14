@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <cmath>
 #include <optional>
+#include <ctime>
 #include "othello.hpp"
 
 namespace ggsb {
@@ -23,6 +24,15 @@ inline bool unregistered_notice(const ggs::Message& message) {
 }
 struct EvalPoint { int ply; double value; bool exact = false; };
 using EvalSeries = std::vector<std::pair<int, double>>;
+inline std::string local_timestamp() {
+    const auto now = std::time(nullptr); std::tm local{};
+#ifdef _WIN32
+    if (localtime_s(&local, &now)) return {};
+#else
+    if (!localtime_r(&now, &local)) return {};
+#endif
+    std::ostringstream out; out << std::put_time(&local, "%Y-%m-%d %H:%M:%S"); return out.str();
+}
 inline double graph_range(const EvalSeries& a, const EvalSeries& b) {
     double range = 4;
     for (const auto* values : {&a, &b}) for (const auto& point : *values) range = std::max(range, std::abs(point.second));
@@ -179,6 +189,9 @@ struct Game {
 
 struct Match {
     std::string id, type = "8", flag = "U";
+    std::string source_id, finished_at;
+    std::optional<uint64_t> started_ms, finished_ms;
+    uint64_t first_seen_order = 0, started_order = 0, finished_order = 0;
     std::string player[2];
     Game game[2];
     bool watching = false, finished = false, listed = true;
@@ -186,6 +199,15 @@ struct Match {
     bool closed_event = false;
     double result_p0 = 0;
     uint64_t watch_ms = 0;
+    const std::string& display_id() const { return source_id.empty() ? id : source_id; }
+    bool archived() const { return !source_id.empty(); }
+    void finish(uint64_t now, const std::string& timestamp, uint64_t order) {
+        finished = true;
+        if (!finished_ms) {
+            finished_ms = now; finished_order = order;
+            finished_at = timestamp.empty() ? local_timestamp() : timestamp;
+        }
+    }
     int games() const { return !type.empty() && (type[0] == 's' || type[0] == 'S') ? 2 : 1; }
     bool clock_running(int sub) const {
         if (!game[sub].active || game[sub].finished) return false;
@@ -469,6 +491,7 @@ public:
 class ClientModel {
 public:
     std::map<std::string, Match> matches;
+    uint64_t match_sequence = 0;
     std::vector<User> users;
     // Roster snapshots may drop players; retain their last received ratings separately.
     std::array<std::map<std::string, User>, 2> who_snapshots;
@@ -520,7 +543,27 @@ public:
         std::sort(users.begin(), users.end(), [](const User& a, const User& b) { return a.rating != b.rating ? a.rating > b.rating : a.name < b.name; });
     }
     Match& ensure(const std::string& id) {
-        auto& m = matches[id]; m.id = id; return m;
+        auto [found, inserted] = matches.try_emplace(id);
+        auto& m = found->second; m.id = id;
+        if (inserted) m.first_seen_order = ++match_sequence;
+        return m;
+    }
+    std::vector<Match*> watched_matches() {
+        std::vector<Match*> result;
+        for (auto& [id, m] : matches) if (m.watching || watches.count(id)) result.push_back(&m);
+        std::sort(result.begin(), result.end(), [](const Match* a, const Match* b) {
+            const bool a_finished = a->finished || a->complete(), b_finished = b->finished || b->complete();
+            if (a_finished != b_finished) return !a_finished;
+            const auto a_time = a_finished ? a->finished_ms : a->started_ms;
+            const auto b_time = b_finished ? b->finished_ms : b->started_ms;
+            if (a_time != b_time) return a_time > b_time;
+            const auto a_order = a_finished ? a->finished_order : a->started_order;
+            const auto b_order = b_finished ? b->finished_order : b->started_order;
+            if (a_order != b_order) return a_order > b_order;
+            if (a->first_seen_order != b->first_seen_order) return a->first_seen_order > b->first_seen_order;
+            return a->id < b->id;
+        });
+        return result;
     }
     void begin_watching(const std::string& id, uint64_t now) {
         stopped_watches.erase(id); watches.insert(id);
@@ -549,7 +592,7 @@ public:
         if (console.size() > 500) { console_first_line += 1 + console.front().body.size(); console.pop_front(); }
     }
     void clear_console() { for (const auto& message : console) console_first_line += 1 + message.body.size(); console.clear(); }
-    void receive(const ggs::Message& message, uint64_t now) {
+    void receive(const ggs::Message& message, uint64_t now, const std::string& received_at = {}) {
         if (unregistered_notice(message)) { registered = false; return; }
         const auto central_header = ggs::tokenize(message.head);
         if (central_header.size() >= 2 && central_header[0] == ":" && central_header[1] == "who") for (const auto& row : message.body) {
@@ -570,8 +613,9 @@ public:
         if (ggs::parse_match_event(message, event)) {
             if (!supported_type(event.row.type)) return;
             auto& m = update_row(event.row, event.start);
+            if (event.start && !m.started_ms) { m.started_ms = now; m.started_order = ++match_sequence; }
             if (!event.start) {
-                m.listed = false; m.finished = true;
+                m.listed = false; m.finish(now, received_at, ++match_sequence);
                 m.closed_event = true;
                 m.has_result = event.has_result; m.result_p0 = event.result0;
                 if (m.games() == 1 && m.has_result) {
@@ -606,7 +650,8 @@ public:
             if (own) stopped_watches.erase(m.id);
             m.watching = !stopped_watches.count(m.id);
             if (m.watching) watches.insert(m.id);
-            m.finished = m.complete();
+            if (m.finished) { g.finished = true; g.final_evals(); }
+            if (m.finished || m.complete()) m.finish(now, received_at, ++match_sequence);
             if (m.watching && !first_board && !bm.is_join && g.ply > previous_ply
                 && std::popcount(g.pos.black | g.pos.white) > previous_discs) { ++move_events; moved_matches.insert(m.id); }
             if (m.watching && (selected.empty() || (first_board && own))) selected = m.id;
@@ -631,7 +676,7 @@ public:
             g.finished = true;
             int c = g.color_of(end.player[0]);
             if (end.has_result && c >= 0) { g.has_official_result = true; g.result_black = end.result0 * (c == BLACK ? 1 : -1); }
-            g.final_evals(); m.finished = m.complete(); return;
+            g.final_evals(); if (m.complete()) m.finish(now, received_at, ++match_sequence); return;
         }
         auto head = ggs::tokenize(message.head);
         if (head.size() >= 2 && head[0] == "/os:" && head[1] == "who") {
@@ -679,7 +724,20 @@ public:
     }
     Match& update_row(const ggs::MatchRow& row, bool new_active = false) {
         auto& m = ensure(row.id);
-        if (new_active && m.closed_event) { m = Match{}; m.id = row.id; watches.erase(row.id); }
+        if (new_active && m.closed_event) {
+            if (m.watching || watches.count(row.id)) {
+                auto saved = m; saved.source_id = row.id;
+                saved.id = row.id + "@" + std::to_string(++match_sequence);
+                if (selected == row.id) selected = saved.id;
+                if (auto chat = match_chat.find(row.id); chat != match_chat.end()) {
+                    match_chat[saved.id] = std::move(chat->second); match_chat.erase(chat);
+                }
+                const auto saved_id = saved.id;
+                watches.insert(saved_id); matches.emplace(saved_id, std::move(saved));
+            }
+            m = Match{}; m.id = row.id; m.first_seen_order = ++match_sequence; watches.erase(row.id);
+            moved_matches.erase(row.id);
+        }
         m.type = row.type; m.flag = row.flag; m.listed = true;
         m.player[0] = row.player[0]; m.player[1] = row.player[1];
         for (int i = 0; i < 2; ++i) update_rating(row.player[i], row.type, row.rating[i]);

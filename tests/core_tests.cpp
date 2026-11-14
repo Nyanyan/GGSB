@@ -490,6 +490,68 @@ int main(int argc, char** argv) {
         CHECK(!notifications.can_stop_watching(".901") && !notifications.stop_watching(".901"));
         notifications.matches.at(".901").finished = true;
         CHECK(notifications.stop_watching(".901") && !notifications.can_stop_watching("missing"));
+        ClientModel match_order;
+        auto start_match = [&](const std::string& id, uint64_t time, const std::string& type = "8") {
+            match_order.receive({"/os: + match " + id + " 2300 alice 2200 bob " + type + " R", {}}, time);
+            match_order.begin_watching(id, time);
+        };
+        auto end_match = [&](const std::string& id, uint64_t time, const std::string& timestamp) {
+            match_order.receive({"/os: - match " + id + " 2300 alice 2200 bob 8 R +16.00 .100", {}}, time, timestamp);
+        };
+        auto ordered_ids = [&] {
+            std::vector<std::string> ids;
+            for (const auto* m : match_order.watched_matches()) ids.push_back(m->id);
+            return ids;
+        };
+        // Match IDs are reusable slots, so they do not indicate start order.
+        start_match(".90", 0); start_match(".2", 20); start_match(".50", 30); start_match(".10", 40);
+        CHECK(ordered_ids() == (std::vector<std::string>{".10", ".50", ".2", ".90"}));
+        match_order.receive({"/os: + match .2 2300 alice 2200 bob 8 R", {}}, 45);
+        CHECK(match_order.matches.at(".2").started_ms == 20); // Duplicate starts do not reorder a match.
+        end_match(".50", 50, "2026-11-14 12:00:50");
+        end_match(".90", 60, "2026-11-14 12:01:00");
+        CHECK(ordered_ids() == (std::vector<std::string>{".10", ".2", ".90", ".50"}));
+        end_match(".90", 70, "2026-11-14 12:01:10");
+        CHECK(match_order.matches.at(".90").finished_ms == 60 && match_order.matches.at(".90").finished_at == "2026-11-14 12:01:00");
+        match_order.receive({"/os: match 2", {".2 2300 alice 2200 bob 8 R 0", ".10 2300 alice 2200 bob 8 R 0"}}, 80);
+        match_order.begin_watching(".2", 90);
+        CHECK(ordered_ids() == (std::vector<std::string>{".10", ".2", ".90", ".50"}));
+        CHECK(match_order.stop_watching(".90"));
+        CHECK(ordered_ids() == (std::vector<std::string>{".10", ".2", ".50"}));
+        match_order.selected = ".50";
+        match_order.match_chat[".50"].push_back("previous match chat");
+        start_match(".50", 100);
+        auto ordered = match_order.watched_matches();
+        CHECK(ordered.size() == 4 && ordered.front()->id == ".50");
+        const auto archived_key = ordered.back()->id;
+        CHECK(archived_key != ".50" && ordered.back()->archived() && ordered.back()->display_id() == ".50");
+        CHECK(ordered.back()->finished_at == "2026-11-14 12:00:50" && match_order.selected == archived_key);
+        CHECK(match_order.match_chat.at(archived_key).back() == "previous match chat" && !match_order.match_chat.count(".50"));
+        CHECK(!match_order.matches.at(".50").finished && !match_order.matches.at(".50").finished_ms);
+        CHECK(match_order.stop_watching(archived_key) && match_order.matches.at(".50").watching);
+        // Initial snapshots omit start times; preserve discovery order behind known starts.
+        match_order.receive({"/os: match 4", {".2 2300 alice 2200 bob 8 R 0", ".10 2300 alice 2200 bob 8 R 0", ".70 2300 alice 2200 bob 8 R 0", ".3 2300 alice 2200 bob 8 R 0"}}, 110);
+        match_order.begin_watching(".70", 120); match_order.begin_watching(".3", 130);
+        CHECK(ordered_ids() == (std::vector<std::string>{".50", ".10", ".2", ".3", ".70"}));
+        // Both synchro boards must finish before the match gets an end time.
+        start_match(".4", 140, "s8");
+        match_order.matches.at(".4").game[0].active = match_order.matches.at(".4").game[1].active = true;
+        match_order.receive({"/os: end .4.0 ( alice vs. bob ) +2.00", {}}, 150, "2026-11-14 12:02:30");
+        CHECK(!match_order.matches.at(".4").finished_ms);
+        match_order.receive({"/os: end .4.1 ( bob vs. alice ) -2.00", {}}, 160, "2026-11-14 12:02:40");
+        CHECK(match_order.matches.at(".4").finished && match_order.matches.at(".4").finished_at == "2026-11-14 12:02:40");
+        CHECK(match_order.watched_matches().back()->id == ".4");
+        // A delayed join for a closed match must retain its finished state and time.
+        auto delayed_closed_board = placement; delayed_closed_board.id = ".4.0";
+        match_order.receive(board_message(delayed_closed_board, "s8", true), 170, "2026-11-14 12:02:50");
+        CHECK(match_order.matches.at(".4").finished && match_order.matches.at(".4").finished_at == "2026-11-14 12:02:40");
+        end_match(".10", 200, "2026-11-14 12:03:20");
+        end_match(".2", 200, "2026-11-14 12:03:20");
+        CHECK(ordered_ids() == (std::vector<std::string>{".50", ".3", ".70", ".2", ".10", ".4"}));
+        // Equal timestamps retain the actual notification order, not the row discovery order.
+        match_order.receive({"/os: match 2", {".5 2300 alice 2200 bob 8 R 0", ".6 2300 alice 2200 bob 8 R 0"}}, 210);
+        start_match(".6", 220); start_match(".5", 220);
+        CHECK(match_order.watched_matches()[0]->id == ".5" && match_order.watched_matches()[1]->id == ".6");
         bool pass_notification_checked = false;
         for (const auto& timeline : graph_games) {
             const auto pass = std::find_if(timeline.moves.begin(), timeline.moves.end(), [](const auto& move) { return move.pass; });

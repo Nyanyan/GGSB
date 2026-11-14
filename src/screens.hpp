@@ -49,7 +49,7 @@ inline void Application::draw_shell() {
     p.label(ui::tr(U"観戦中"), 12, 24, 716, muted, true);
     if (p.button({144, 709, 62, 27}, ui::tr(U"一覧"))) page = 5;
     std::vector<std::string> watched;
-    for (const auto& [id, m] : model.matches) if (m.watching || model.watches.count(id)) watched.push_back(id);
+    for (const auto* m : watched_matches()) watched.push_back(m->id);
     p.scroll_list("watched", {12, 746, 192, 192}, {210, 746, 8, 192}, int(watched.size()), 3, watched_offset);
     for (int n = 0; n < 3 && watched_offset + n < int(watched.size()); ++n) {
         const auto& id = watched[watched_offset + n]; auto& m = model.matches.at(id);
@@ -61,7 +61,7 @@ inline void Application::draw_shell() {
         const bool finished = m.finished || m.complete();
         const String result = winner ? (*winner < 0 ? ui::tr(U"引き分け") : ui::tr(U"勝者 ") + str(m.player[*winner])) : finished ? ui::tr(U"結果なし") : ui::tr(U"対局中");
         p.clipped(result, 12, {24, y + 25, 143, 19}, winner ? mint : muted, finished);
-        p.clipped((finished ? ui::tr(U"終局") + U" · " : U"") + (m.games() == 2 ? U"SYNC" : U"8×8") + U" · " + str(id), 9, {24, y + 46, 143, 15}, muted);
+        p.clipped((finished ? ui::tr(U"終局") + U" · " : U"") + (m.games() == 2 ? U"SYNC" : U"8×8") + U" · " + str(m.display_id()), 9, {24, y + 46, 143, 15}, muted);
         const bool stopped = model.can_stop_watching(id) && p.close_button({180, y + 18, 24, 24});
         if (stopped) { stop_watching(id); continue; }
         if (!p.blocked && p.dragging_list.empty() && r.leftClicked()) { choose_match(id); page = 0; }
@@ -250,7 +250,7 @@ inline void Application::draw_arena() {
         if (p.button({961, 580, 180, 44}, ui::tr(U"棋譜を開く"))) open_record();
         return;
     }
-    p.label(str(m->id) + U"   /   " + str(m->type), 13, 333, 132, muted);
+    p.label(str(m->display_id()) + U"   /   " + str(m->type), 13, 333, 132, muted);
     bool own = may_match() && !m->finished && (m->player[0] == model.username || m->player[1] == model.username);
     std::string game_id = m->game[active_board].id;
     if (own) {
@@ -326,7 +326,7 @@ inline void Application::draw_lobby() {
             RectF row{346, y, 1210, 66};
             if (row.mouseOver()) Line{row.x, row.bottomY(), row.rightX(), row.bottomY()}.draw(1, muted);
             const auto winner = m.winner();
-            p.label(str(m.id), 14, 355, y + 20, muted);
+            p.label(str(m.display_id()), 14, 355, y + 20, muted);
             p.clipped(str(m.player[0]), 18, {442, y + 16, 186, 34}, winner && *winner == 0 ? mint : text, true);
             p.label(U"vs", 13, 640, y + 20, muted);
             p.clipped(str(m.player[1]), 18, {680, y + 16, 170, 34}, winner && *winner == 1 ? mint : text, true);

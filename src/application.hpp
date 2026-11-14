@@ -265,12 +265,12 @@ public:
     }
     void watch(const std::string& id) {
         model.selected = id; cursors[id] = -1; graph_cursors.erase(id); active_board = 0; graph_board = -1; move_offset = 0; move_follow_tail = true; page = 0;
-        if (mode == Mode::Demo) { model.begin_watching(id, now()); return; }
+        if (mode == Mode::Demo || model.ensure(id).archived()) { model.begin_watching(id, now()); return; }
         if (send("t /os watch + " + id)) model.begin_watching(id, now());
     }
     bool stop_watching(const std::string& id) {
         if (!model.can_stop_watching(id)) return false;
-        if (online() && !send("t /os watch - " + id)) return false;
+        if (online() && !model.matches.at(id).archived() && !send("t /os watch - " + id)) return false;
         const bool active = model.selected == id;
         if (!model.stop_watching(id)) return false;
         cursors.erase(id); graph_cursors.erase(id);
@@ -278,10 +278,7 @@ public:
         return true;
     }
     std::vector<Match*> watched_matches() {
-        std::vector<Match*> matches;
-        for (auto& [id, m] : model.matches) if (m.watching || model.watches.count(id)) matches.push_back(&m);
-        std::stable_sort(matches.begin(), matches.end(), [](const auto* a, const auto* b) { return a->finished < b->finished; });
-        return matches;
+        return model.watched_matches();
     }
     bool move_sound_due() {
         if (!sound || audio.gain() == 0) return false;

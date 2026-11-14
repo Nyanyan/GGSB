@@ -22,7 +22,9 @@ inline void Application::draw_mosaic() {
         p.clipped(str(m.player[0]) + U"  ×  " + str(m.player[1]), 20, {tile.x + 20, tile.y + 14, tile.w - 186, 29}, text, true);
         const auto match_winner = m.winner();
         String outcome = match_winner ? (*match_winner < 0 ? ui::tr(U"引き分け") : ui::tr(U"勝者 ") + str(m.player[*match_winner])) : m.finished ? ui::tr(U"結果なし") : ui::tr(U"対局中");
-        p.clipped(str(m.id) + U"  /  " + str(m.type) + U"  /  " + outcome, 12, {tile.x + 21, tile.y + 43, tile.w - 42, 20}, match_winner ? mint : muted, bool(match_winner));
+        const bool finished = m.finished || m.complete();
+        p.clipped(str(m.display_id()) + U"  /  " + str(m.type) + U"  /  " + outcome, 12, {tile.x + 21, tile.y + 43, finished ? tile.w - 264 : tile.w - 42, 20}, match_winner ? mint : muted, bool(match_winner));
+        if (finished) p.clipped(ui::tr(U"終了 ") + (m.finished_at.empty() ? U"—" : str(m.finished_at)), 11, {tile.rightX() - 231, tile.y + 43, 210, 20}, muted);
         if (model.can_stop_watching(m.id) && p.button({tile.rightX() - 145, tile.y + 16, 124, 31}, ui::tr(U"観戦を終了"))) { stop_watching(m.id); continue; }
         for (int sub = 0; sub < m.games(); ++sub) {
             auto& g = m.game[sub]; RectF board{tile.x + 39 + sub * 299.0, tile.y + 116, 184, 184};
